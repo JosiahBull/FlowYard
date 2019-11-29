@@ -16,11 +16,24 @@ async function getShapeFile(path) {
     return output;
 }
 
+function solveLineCollisions(lineInformation) {
+    console.log(lineInformation)
+    let outputCollisions;
+    // let remaining = lineInformation;
+    // lineInformation.forEach((line, i) => {
+    //     remaining.forEach((secondLine, x) => {
+
+    //     })
+    //     //remove item from remaining
+    // });
+};
+
+
 console.log('BlueBarn Parser Tool Started.');
 
-let inpOutPutFile = {
+let outputFile = {
     junctions : [],
-    pips : [],
+    pipes : [],
     coordinates : [],
     vertices : []
 }
@@ -31,17 +44,40 @@ let inpOutPutFile = {
     coordinates : node, x-coord, y-coord
     vertices : link [which pipe], x-coord, y-coord
 */
+let nodeCounter = 0;
+let pipeCounter = 0;
+function getNode() {
+    return nodeCounter++;
+}
+function getPipe() {
+    return pipeCounter++
+}
 
 getShapeFile(pathToInput).then(shapefile => {
+    let rawLineInformation = [];
     shapefile.forEach(feature => {
-        console.log(JSON.stringify(feature))
-        if (feature.type !== 'Feature') throw new Error('Unrecognised fetaure type of: ' + feature.type);
+        if (feature.type !== 'Feature') throw new Error('Unrecognised feature type of: ' + feature.type);
         if (feature.geometry.type !== 'LineString') throw new Error('Unrecognised feature type of: ' + feature.geometry.type);
-
-        
-
-    })
-
+        let vertCounter = 0;
+        let pipeNo = getPipe();
+        for (let i = 0; i<feature.geometry.coordinates.length; i++) {
+            let coord1 = feature.geometry.coordinates[i];
+            let coord2 = feature.geometry.coordinates[i+1];
+            // if (i >= 2) {
+            //     coord2 = JSON.parse(JSON.stringify(coord1));
+            //     coord1 = feature.geometry.coordinates[i-1];
+            // }
+            rawLineInformation.push({
+                coord1: coord1,
+                coord2: coord2,
+                pipeNo: pipeNo,
+                vertNo: vertCounter,
+                totalVerts: feature.geometry.coordinates.length
+            });
+            vertCounter++;
+        };
+    });
+    solveLineCollisions(rawLineInformation);
 
 }).catch(err => {
     console.log('\nAn error occured!\n');
