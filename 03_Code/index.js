@@ -7,6 +7,7 @@ const pathToPointFile = path.join(__dirname, 'RawInput/points.csv');
 
 async function getShapeFile(pathToInput) {
     let output = [];
+    let rawLineInformation = [];
     await shapefile.open(pathToInput)
         .then(source => source.read()    
             .then(function readShapeFile(result) {
@@ -15,7 +16,21 @@ async function getShapeFile(pathToInput) {
                 return source.read().then(readShapeFile);
             })
         )
-    return output;
+    output.forEach(feature => {
+        if (feature.type !== 'Feature') throw new Error('Unrecognised feature type of: ' + feature.type);
+        if (feature.geometry.type !== 'LineString') throw new Error('Unrecognised feature type of: ' + feature.geometry.type);
+        for (let i = 0; i<feature.geometry.coordinates.length; i++) {
+            if (!(i + 1 >= feature.geometry.coordinates.length)) {
+                let coord1 = [Number(feature.geometry.coordinates[i][0].toFixed(4)), Number(feature.geometry.coordinates[i][1].toFixed(4))]
+                let coord2 = [Number(feature.geometry.coordinates[i+1][0].toFixed(4)), Number(feature.geometry.coordinates[i+1][1].toFixed(4))]
+                rawLineInformation.push({
+                    coord1: coord1,
+                    coord2: coord2
+                });
+            };
+        };
+    })
+    return rawLineInformation;
 };
 
 function getCSVFile(pathToInput) {
@@ -28,32 +43,12 @@ function getCSVFile(pathToInput) {
         .fromFile(pathToInput)
 };
 
-function processLineFile(lineFile) {
-    let rawLineInformation = [];
-    let pipeCounter = 0;
-    lineFile.forEach(feature => {
-        if (feature.type !== 'Feature') throw new Error('Unrecognised feature type of: ' + feature.type);
-        if (feature.geometry.type !== 'LineString') throw new Error('Unrecognised feature type of: ' + feature.geometry.type);
-        let vertCounter = 0;
-        for (let i = 0; i<feature.geometry.coordinates.length; i++) {
-            if (!(i+1 >= feature.geometry.coordinates.length)) {
-                let coord1 = feature.geometry.coordinates[i];
-                let coord2 = feature.geometry.coordinates[i+1];
-                rawLineInformation.push({
-                    coord1: coord1,
-                    coord2: coord2,
-                    vertNo : vertCounter,
-                    pipeNo : pipeCounter
-                });
-                vertCounter++;
-            };
-        };
-        pipeCounter++;
-    });
-    return Promise.resolve(rawLineInformation);
-};
-
 function solveLineCollisions(points, existingLines) {
+    // return {
+    //     points: points,
+    //     lines: existingLines
+    // }
+    let collisionRegistry = {};
     function findPointInArray(node) {
         return points.filter(point => node === point.id)[0];
     }
@@ -63,8 +58,10 @@ function solveLineCollisions(points, existingLines) {
         let { startNode, endNode } = line;
         startNode = findPointInArray(startNode);
         endNode = findPointInArray(endNode);
-        let m = (startNode.y-endNode.y)/(startNode.x-endNode.x);
-        let b = startNode.x+m*startNode.y;
+
+        let m = (startNode.y - endNode.y)/(startNode.x - endNode.x);
+        let b = startNode.y - m * startNode.x;
+
         let minX = Math.min(startNode.x, endNode.x);
         let maxX = Math.max(startNode.x, endNode.x);
 
@@ -74,20 +71,29 @@ function solveLineCollisions(points, existingLines) {
             startNode = findPointInArray(startNode);
             endNode = findPointInArray(endNode);
             let q = (startNode.y-endNode.y)/(startNode.x-endNode.x);
-            let c = startNode.x+m*startNode.y;
+            let c = startNode.y - q * startNode.x;
+
             if (m === q) return; //Lines are parallel and will never meet.
+
             //Check for collision between lines.
-            collisionX = (c-b)/(m-q);
+            collisionX = Number(((b-c)/(q-m)).toFixed(4));
             //If the collision exists on the extent of the lines, then add it.
-            if (collisionX > minX && collisionX < maxX) { 
+            if (collisionX > minX && collisionX < maxX) {
+                if (collisionRegistry[line.id] === secondLine.id) return; //Check that this collision hasn't occured before with these two pipes.
+                collisionRegistry[line.id] = secondLine.id;
+                collisionRegistry[secondLine.id] = line.id;
                 //Create new point and add to pointArray.
                 newPoint = {
-                    id: getPointId(),
-                    x: collisionX,
-                    y: m*collisionX+b,
-                    z: null
+                    x: Number(collisionX.toFixed(4)),
+                    y: Number((m * collisionX + b).toFixed(4)),
                 };
-                points.push(newPoint);
+                let checkPoint = containsObject([newPoint.x, newPoint.y], points);
+                if(!checkPoint[0]) {
+                    newPoint = checkPoint[1];
+                } else {
+                    newPoint.id = getPointId();
+                    points.push(newPoint);
+                };
                 //Add two new lines because of new breakpoints.
                 lines.push({
                     id: getLineId(),
@@ -101,9 +107,11 @@ function solveLineCollisions(points, existingLines) {
                     endNode: lines[r].endNode,
                     length: calcLength(newPoint, findPointInArray(lines[r].endNode))
                 });
-                //Edit the two existing lines to be shorter and finish at the new break point.
-                lines[i].endNode = newPoint.id
-                lines[r].endNode = newPoint.id
+                // Edit the two existing lines to be shorter and finish at the new break point.
+                //TODO recalc length of new pipe.
+                //TODO handle vertical/horizontal lines.
+                lines[i].endNode = newPoint.id;
+                lines[r].endNode = newPoint.id;
             };
         });
     });
@@ -113,12 +121,6 @@ function solveLineCollisions(points, existingLines) {
     }
 };
 
-/* EXPECTED SCHEMA
-    Junction : id, elev, demand (0), pattern (empty).
-    Pipe : id, node1, node2, length, diameter, roughness (100), minorloss (0), status (open)
-    coordinates : node, x-coord, y-coord
-    vertices : link [which pipe], x-coord, y-coord
-*/
 function containsObject(obj, list) {
     for (let i = 0; i < list.length; i++) {
         if (list[i].x === obj[0] && list[i].y === obj[1]) {
@@ -131,19 +133,19 @@ function containsObject(obj, list) {
 let pointCounter = 0;
 function getPointId() {
     return pointCounter++;
-}
+};
 let lineCounter = 0;
 function getLineId() {
     return lineCounter++
-}
-
-function calcLength(point1, point2) {
-    return Math.sqrt(Math.pow(Math.abs(point1.x - point2.x), 2) + Math.pow(Math.abs(point1.y - point2.y), 2))
 };
 
-console.log('BlueBarn Parser Tool Started.');
+function calcLength(point1, point2) {
+    return Number(Math.sqrt(Math.pow(Math.abs(point1.x - point2.x), 2) + Math.pow(Math.abs(point1.y - point2.y), 2)).toFixed(4));
+};
+
+console.log('Blue Barn Parser Tool Started.');
 Promise.all([
-    getShapeFile(pathToLineFile).then(x => processLineFile(x)),
+    getShapeFile(pathToLineFile),
     getCSVFile(pathToPointFile).then(x => x.map(point => {
         return {
             x: Number(point[0]).toFixed(4),
@@ -185,8 +187,8 @@ Promise.all([
         }
         lines.push({
             id: getLineId(),
-            startNode: point.id,
-            endNode: point2.id,
+            startNode: (point.x > point2.x) ? point.id : point2.id,
+            endNode: (point.x < point2.x) ? point.id : point2.id,
             length: calcLength(point, point2)
         })
     });
@@ -195,8 +197,8 @@ Promise.all([
         points: solvedLines.points.map(point => {
             point = {
                 id: point.id,
-                x: point.x.toFixed(4),
-                y: point.y.toFixed(4),
+                x: point.x,
+                y: point.y,
                 z: 0
             };
             let elevPoint = containsObject([point.x, point.y], rawPointInformation);
@@ -224,12 +226,11 @@ Promise.all([
         saveFile += ` ${coordinate.id}              	${coordinate.x}              	${coordinate.y}\n`;
     });
     saveFile += '\n[END]\n';
-    
+
     fs.writeFileSync('forProcessing.inp', saveFile, 'utf-8');
 }).catch(err => {
     console.log('\nAn error occured!\n');
     console.error(err.stack);
 }).finally(() => {
     console.log('File has finished processing. :)');
-})
-
+});
