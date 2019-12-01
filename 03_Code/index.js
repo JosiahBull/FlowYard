@@ -113,31 +113,6 @@ function solveLineCollisions(points, existingLines) {
     }
 };
 
-function saveOuput(junctions, pipes, coordinates, vertices){
-    if (junctions === undefined) {
-        console.warn('No junction information resolved.');
-        junctions = [];
-    }
-    if (pipes === undefined) {
-        console.warn('No pipes information resolved.');
-        pipes = [];
-    }
-    if (coordinates === undefined) {
-        console.warn('No coordinate information resolved.');
-        coordinates = [];
-    }
-    if (vertices === undefined) {
-        console.warn('No vertex information resolved.');
-        vertices = [];
-    }
-
-    let pipeCounter = 0;
-    let nodeCounter = 0;
-    let saveFile = '[TITLE]\nbluebarn\n\n[JUNCTIONS]\n';
-    
-    fs.writeFileSync('forProcessing.inp', saveFile, 'utf-8');
-};
-
 /* EXPECTED SCHEMA
     Junction : id, elev, demand (0), pattern (empty).
     Pipe : id, node1, node2, length, diameter, roughness (100), minorloss (0), status (open)
@@ -235,11 +210,26 @@ Promise.all([
         lines: solvedLines.lines
     };
 }).then(shapeInformation => {
-
+    let { lines, points } = shapeInformation;
+    let saveFile = '[TITLE]\nbluebarn\n\n[JUNCTIONS]\n;ID              	Elev        	Demand      c	Pattern         \n';
+    points.forEach(junction => {
+        saveFile += ` ${junction.id}              	${junction.z}           	0           	                	;\n`;
+    });
+    saveFile += '\n[PIPES]\n;ID              	Node1           	Node2           	Length      	Diameter    	Roughness   	MinorLoss   	Status\n';
+    lines.forEach(pipe => {
+        saveFile += ` ${pipe.id}              	${pipe.startNode}              	${pipe.endNode}              	${pipe.length}          	12          	100         	0           	Open  	;\n`;
+    });
+    saveFile += '\n[COORDINATES]\n;Node            	X-Coord         	Y-Coord\n';
+    points.forEach(coordinate => {
+        saveFile += ` ${coordinate.id}              	${coordinate.x}              	${coordinate.y}\n`;
+    });
+    saveFile += '\n[END]\n';
     
-
+    fs.writeFileSync('forProcessing.inp', saveFile, 'utf-8');
 }).catch(err => {
     console.log('\nAn error occured!\n');
     console.error(err.stack);
+}).finally(() => {
+    console.log('File has finished processing. :)');
 })
 
