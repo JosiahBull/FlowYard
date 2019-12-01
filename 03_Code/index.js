@@ -46,7 +46,7 @@ function getCSVFile(pathToInput) {
         .fromFile(pathToInput)
 };
 
-function solveLineCollisions(points, existingLines) {
+function solveLineCollisions(existingPoints, existingLines) {
     let firstLineVertical = false;
     let secondLineVertical = false;
     let collisionRegistry = {};
@@ -60,6 +60,7 @@ function solveLineCollisions(points, existingLines) {
         return calcLength(startNode, endNode);
     };
     let lines = JSON.parse(JSON.stringify(existingLines));
+    let points = JSON.parse(JSON.stringify(existingPoints));
     existingLines.forEach((line, i) => {
         //Calculate linear equation of first line.
         let { startNode, endNode } = line;
@@ -136,14 +137,30 @@ function solveLineCollisions(points, existingLines) {
                     length: calcLength(newPoint, findPointInArray(lines[r].endNode))
                 });
                 // Edit the two existing lines to be shorter and finish at the new break point.
-
-                //TODO handle vertical/horizontal lines.
                 lines[i].endNode = newPoint.id;
                 lines[i].length = recalculateLength(lines[i]);
                 lines[r].endNode = newPoint.id;
                 lines[r].length = recalculateLength(lines[r]);
             };
         });
+
+        existingPoints.forEach((secondPoint, r) => {
+            if(secondPoint.x > minX_line && secondPoint.x < maxX_line) { //Does the x of the point fall within the range of the line.
+                if (Math.abs((m*secondPoint.x+b) - secondPoint.y) < toleranceValue) { //Does the y of the point match with the calcuated value of the point's y at that x.
+                    //That point lies on the line here. Lets break the line around him.
+                    if (calcLength(secondPoint, lines[i].endNode) < toleranceValue) return; //Check that new line isn't gonna have a length of 0,
+                    lines.push({
+                        id: getLineId(),
+                        startNode: secondPoint.id,
+                        endNode: lines[i].endNode,
+                        length: calcLength(secondPoint, lines[i].endNode)
+                    })
+                    lines[i].endNode = secondPoint.id;
+                    lines[i].length = recalculateLength(lines[i]);
+                }
+            };
+        });
+
     });
     return {
         points: points,
