@@ -46,6 +46,8 @@ function getCSVFile(pathToInput) {
 };
 
 function solveLineCollisions(points, existingLines) {
+    let firstLineVertical = false;
+    let secondLineVertical = false;
     let collisionRegistry = {};
     function findPointInArray(node) {
         return points.filter(point => node === point.id)[0];
@@ -60,11 +62,17 @@ function solveLineCollisions(points, existingLines) {
     existingLines.forEach((line, i) => {
         //Calculate linear equation of first line.
         let { startNode, endNode } = line;
+        let m, b;
         startNode = findPointInArray(startNode);
         endNode = findPointInArray(endNode);
 
-        let m = (startNode.y - endNode.y)/(startNode.x - endNode.x);
-        let b = startNode.y - m * startNode.x;
+        if (startNode.x - endNode.x === 0) {
+            firstLineVertical = true;
+            m = startNode.x;
+        } else {
+            m = (startNode.y - endNode.y)/(startNode.x - endNode.x);
+            b = startNode.y - m * startNode.x;
+        }
 
         let minX_line = Math.min(startNode.x, endNode.x);
         let maxX_line = Math.max(startNode.x, endNode.x);
@@ -72,18 +80,29 @@ function solveLineCollisions(points, existingLines) {
         existingLines.forEach((secondLine, r) => {
             //Calculate Linear Equation of Second Line
             let { startNode, endNode } = secondLine;
+            let q, c;
             startNode = findPointInArray(startNode);
             endNode = findPointInArray(endNode);
-            let q = (startNode.y-endNode.y)/(startNode.x-endNode.x);
-            let c = startNode.y - q * startNode.x;
+            if (startNode.x - endNode.x === 0) {
+                secondLineVertical = true;
+                q = startNode.x;
+            } else {
+                q = (startNode.y-endNode.y)/(startNode.x-endNode.x);
+                c = startNode.y - q * startNode.x;
+            }
+            if (m === q || (firstLineVertical && secondLineVertical)) return; //Lines are parallel and will never meet.
 
+            //Calculate min/max values for x.
             minX = Math.max(Math.min(startNode.x, endNode.x), minX_line);
             maxX = Math.min(Math.max(startNode.x, endNode.x), maxX_line);
-            if (m === q) return; //Lines are parallel and will never meet.
+
             //Check for collision between lines.
-            collisionX = Number(((b-c)/(q-m)).toFixed(4));
+            if (firstLineVertical && (q*m+c) === (q*m+c)) collisionX = m;
+            if (secondLineVertical && (m*q+b) === (m*q+b)) collisionX = q;    
+            if (!firstLineVertical && !secondLineVertical) collisionX = Number(((b-c)/(q-m)).toFixed(4));
+
             //If the collision exists on the extent of the lines, then add it.
-            if (collisionX > minX && collisionX < maxX) {
+            if ((collisionX > minX && collisionX < maxX) || firstLineVertical || secondLineVertical) {
                 if (collisionRegistry[line.id] === secondLine.id) return; //Check that this collision hasn't occured before with these two pipes.
                 collisionRegistry[line.id] = secondLine.id;
                 collisionRegistry[secondLine.id] = line.id;
@@ -198,7 +217,7 @@ Promise.all([
         lines.push({
             id: getLineId(),
             startNode: (point.x > point2.x) ? point.id : point2.id,
-            endNode: (point.x < point2.x) ? point.id : point2.id,
+            endNode: (point.x > point2.x) ? point2.id : point.id,
             length: calcLength(point, point2)
         })
     });
