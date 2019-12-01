@@ -5,6 +5,8 @@ const csv = require('csvtojson');
 const pathToLineFile = path.join(__dirname, 'RawInput/shapey.shp');
 const pathToPointFile = path.join(__dirname, 'RawInput/points.csv');
 
+const toleranceValue = 0.01;
+
 async function getShapeFile(pathToInput) {
     let output = [];
     let rawLineInformation = [];
@@ -44,14 +46,16 @@ function getCSVFile(pathToInput) {
 };
 
 function solveLineCollisions(points, existingLines) {
-    // return {
-    //     points: points,
-    //     lines: existingLines
-    // }
     let collisionRegistry = {};
     function findPointInArray(node) {
         return points.filter(point => node === point.id)[0];
-    }
+    };
+    function recalculateLength(line) {
+        let { startNode, endNode } = line;
+        startNode = findPointInArray(startNode);
+        endNode = findPointInArray(endNode);
+        return calcLength(startNode, endNode);
+    };
     let lines = JSON.parse(JSON.stringify(existingLines));
     existingLines.forEach((line, i) => {
         //Calculate linear equation of first line.
@@ -62,8 +66,8 @@ function solveLineCollisions(points, existingLines) {
         let m = (startNode.y - endNode.y)/(startNode.x - endNode.x);
         let b = startNode.y - m * startNode.x;
 
-        let minX = Math.min(startNode.x, endNode.x);
-        let maxX = Math.max(startNode.x, endNode.x);
+        let minX_line = Math.min(startNode.x, endNode.x);
+        let maxX_line = Math.max(startNode.x, endNode.x);
 
         existingLines.forEach((secondLine, r) => {
             //Calculate Linear Equation of Second Line
@@ -73,8 +77,9 @@ function solveLineCollisions(points, existingLines) {
             let q = (startNode.y-endNode.y)/(startNode.x-endNode.x);
             let c = startNode.y - q * startNode.x;
 
+            minX = Math.max(Math.min(startNode.x, endNode.x), minX_line);
+            maxX = Math.min(Math.max(startNode.x, endNode.x), maxX_line);
             if (m === q) return; //Lines are parallel and will never meet.
-
             //Check for collision between lines.
             collisionX = Number(((b-c)/(q-m)).toFixed(4));
             //If the collision exists on the extent of the lines, then add it.
@@ -91,9 +96,12 @@ function solveLineCollisions(points, existingLines) {
                 if(!checkPoint[0]) {
                     newPoint = checkPoint[1];
                 } else {
-                    newPoint.id = getPointId();
-                    points.push(newPoint);
+                    newPoint.id = getPointId();  
                 };
+                if (calcLength(newPoint, findPointInArray(lines[i].endNode)) < toleranceValue || calcLength(newPoint, findPointInArray(lines[r].endNode)) < toleranceValue) return; //Check if the new lines that will be created will actually have length. If they won't then don't bother.
+                if (checkPoint[0]) {
+                    points.push(newPoint);  
+                }
                 //Add two new lines because of new breakpoints.
                 lines.push({
                     id: getLineId(),
@@ -108,10 +116,12 @@ function solveLineCollisions(points, existingLines) {
                     length: calcLength(newPoint, findPointInArray(lines[r].endNode))
                 });
                 // Edit the two existing lines to be shorter and finish at the new break point.
-                //TODO recalc length of new pipe.
+
                 //TODO handle vertical/horizontal lines.
                 lines[i].endNode = newPoint.id;
+                lines[i].length = recalculateLength(lines[i]);
                 lines[r].endNode = newPoint.id;
+                lines[r].length = recalculateLength(lines[r]);
             };
         });
     });
@@ -123,7 +133,7 @@ function solveLineCollisions(points, existingLines) {
 
 function containsObject(obj, list) {
     for (let i = 0; i < list.length; i++) {
-        if (list[i].x === obj[0] && list[i].y === obj[1]) {
+        if ((Math.abs(list[i].x - obj[0]) < toleranceValue) && (Math.abs(list[i].y - obj[1]) < toleranceValue)) {
             return [false, list[i]]
         }
     }
