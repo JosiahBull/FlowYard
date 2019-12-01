@@ -23,8 +23,9 @@ async function getShapeFile(pathToInput) {
         if (feature.geometry.type !== 'LineString') throw new Error('Unrecognised feature type of: ' + feature.geometry.type);
         for (let i = 0; i<feature.geometry.coordinates.length; i++) {
             if (!(i + 1 >= feature.geometry.coordinates.length)) {
-                let coord1 = [Number(feature.geometry.coordinates[i][0].toFixed(4)), Number(feature.geometry.coordinates[i][1].toFixed(4))]
-                let coord2 = [Number(feature.geometry.coordinates[i+1][0].toFixed(4)), Number(feature.geometry.coordinates[i+1][1].toFixed(4))]
+                let coord1 = [Number(feature.geometry.coordinates[i][0].toFixed(4)), Number(feature.geometry.coordinates[i][1].toFixed(4))];
+                let coord2 = [Number(feature.geometry.coordinates[i+1][0].toFixed(4)), Number(feature.geometry.coordinates[i+1][1].toFixed(4))];
+                if (calcLength({x: coord1[0], y: coord1[1]}, {x: coord2[0], y: coord2[1]}) === 0) return; //If your length is zero, so is your worth.
                 rawLineInformation.push({
                     coord1: coord1,
                     coord2: coord2
@@ -220,6 +221,12 @@ Promise.all([
             endNode: (point.x > point2.x) ? point2.id : point.id,
             length: calcLength(point, point2)
         })
+        // if (calcLength(point, point2) === 0) {
+        //     console.log('big bad');
+        //     console.log({
+        //         line: line
+        //     })
+        // }
     });
     let solvedLines = solveLineCollisions(points, lines);
     return {
