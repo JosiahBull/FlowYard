@@ -26,7 +26,7 @@ function getCSVFile(pathToInput) {
         output:"csv"
     })
         .fromFile(pathToInput)
-}
+};
 
 function processLineFile(lineFile) {
     let rawLineInformation = [];
@@ -101,7 +101,7 @@ function solveLineCollisions(points, existingLines) {
                     endNode: lines[r].endNode,
                     length: calcLength(newPoint, findPointInArray(lines[r].endNode))
                 });
-                //Edit the two existing lines to be shorter and finish at the new point.
+                //Edit the two existing lines to be shorter and finish at the new break point.
                 lines[i].endNode = newPoint.id
                 lines[r].endNode = newPoint.id
             };
@@ -152,6 +152,7 @@ function containsObject(obj, list) {
     }
     return [true, null];
 };
+
 let pointCounter = 0;
 function getPointId() {
     return pointCounter++;
@@ -163,28 +164,34 @@ function getLineId() {
 
 function calcLength(point1, point2) {
     return Math.sqrt(Math.pow(Math.abs(point1.x - point2.x), 2) + Math.pow(Math.abs(point1.y - point2.y), 2))
-}
+};
 
 console.log('BlueBarn Parser Tool Started.');
 Promise.all([
     getShapeFile(pathToLineFile).then(x => processLineFile(x)),
-    getCSVFile(pathToPointFile)
+    getCSVFile(pathToPointFile).then(x => x.map(point => {
+        return {
+            x: Number(point[0]).toFixed(4),
+            y: Number(point[1]).toFixed(4),
+            z: Number(point[2]).toFixed(4)
+        };
+    }))
 ]).then(x => {
     return {
         rawLineInformation: x[0],
         rawPointInformation: x[1]
     }
 }).then(shapeInformation => {
+    let { rawLineInformation, rawPointInformation } = shapeInformation;
     let points = [];
     let lines = [];
-    shapeInformation.rawLineInformation.forEach(line => {
+    rawLineInformation.forEach(line => {
         let point = containsObject(line.coord1, points);
         if (point[0]) {
             point = {
                 id: getPointId(),
                 x: line.coord1[0],
-                y: line.coord1[1],
-                z: null
+                y: line.coord1[1]
             }
             points.push(point)
         } else {
@@ -195,8 +202,7 @@ Promise.all([
             point2 = {
                 id: getPointId(),
                 x: line.coord2[0],
-                y: line.coord2[1],
-                z: null
+                y: line.coord2[1]
             }
             points.push(point2);
         } else {
@@ -208,9 +214,30 @@ Promise.all([
             endNode: point2.id,
             length: calcLength(point, point2)
         })
-    })
+    });
+    let solvedLines = solveLineCollisions(points, lines);
+    return {
+        points: solvedLines.points.map(point => {
+            point = {
+                id: point.id,
+                x: point.x.toFixed(4),
+                y: point.y.toFixed(4),
+                z: 0
+            };
+            let elevPoint = containsObject([point.x, point.y], rawPointInformation);
+            if (elevPoint[0]) {
+                return point;
+            } else {
+                elevPoint[1].id = point.id;
+                return elevPoint[1];
+            }
+        }),
+        lines: solvedLines.lines
+    };
+}).then(shapeInformation => {
 
-    return solveLineCollisions(points, lines);
+    
+
 }).catch(err => {
     console.log('\nAn error occured!\n');
     console.error(err.stack);
