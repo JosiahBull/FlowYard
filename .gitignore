@@ -4,3 +4,9 @@
 *.dwl
 03_Code/forProcessing.inp
 03_Code/forProcessing.inp
+03_Code/RawInput/
+*.shx
+*.shp
+*.idx
+*.dbf
+03_Code/forProcessing.inp

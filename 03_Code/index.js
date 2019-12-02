@@ -4,7 +4,6 @@ const shapefile = require('shapefile');
 const csv = require('csvtojson');
 const pathToLineFile = path.join(__dirname, 'RawInput/shapey.shp');
 const pathToPointFile = path.join(__dirname, 'RawInput/points.csv');
-
 const toleranceValue = 0.01;
 
 async function getShapeFile(pathToInput) {
@@ -35,7 +34,6 @@ async function getShapeFile(pathToInput) {
     })
     return rawLineInformation;
 };
-
 function getCSVFile(pathToInput) {
     return csv({
         noheader: true,
@@ -45,8 +43,7 @@ function getCSVFile(pathToInput) {
     })
         .fromFile(pathToInput)
 };
-
-function solveLineCollisions(existingPoints, existingLines) {
+function solveLineCollisions(points, existingLines) {
     let firstLineVertical = false;
     let secondLineVertical = false;
     let collisionRegistry = {};
@@ -55,12 +52,9 @@ function solveLineCollisions(existingPoints, existingLines) {
     };
     function recalculateLength(line) {
         let { startNode, endNode } = line;
-        startNode = findPointInArray(startNode);
-        endNode = findPointInArray(endNode);
-        return calcLength(startNode, endNode);
+        return calcLength(findPointInArray(startNode), findPointInArray(endNode));
     };
     let lines = JSON.parse(JSON.stringify(existingLines));
-    let points = JSON.parse(JSON.stringify(existingPoints));
     existingLines.forEach((line, i) => {
         //Calculate linear equation of first line.
         let { startNode, endNode } = line;
@@ -113,7 +107,7 @@ function solveLineCollisions(existingPoints, existingLines) {
                     x: Number(collisionX.toFixed(4)),
                     y: Number((m * collisionX + b).toFixed(4)),
                 };
-                let checkPoint = containsObject([newPoint.x, newPoint.y], points);
+                let checkPoint = objectNotInArray([newPoint.x, newPoint.y], points);
                 if(!checkPoint[0]) {
                     newPoint = checkPoint[1];
                 } else {
@@ -143,32 +137,78 @@ function solveLineCollisions(existingPoints, existingLines) {
                 lines[r].length = recalculateLength(lines[r]);
             };
         });
-
-        existingPoints.forEach((secondPoint, r) => {
-            if(secondPoint.x > minX_line && secondPoint.x < maxX_line) { //Does the x of the point fall within the range of the line.
-                if (Math.abs((m*secondPoint.x+b) - secondPoint.y) < toleranceValue) { //Does the y of the point match with the calcuated value of the point's y at that x.
-                    //That point lies on the line here. Lets break the line around him.
-                    if (calcLength(secondPoint, lines[i].endNode) < toleranceValue) return; //Check that new line isn't gonna have a length of 0,
-                    lines.push({
-                        id: getLineId(),
-                        startNode: secondPoint.id,
-                        endNode: lines[i].endNode,
-                        length: calcLength(secondPoint, lines[i].endNode)
-                    })
-                    lines[i].endNode = secondPoint.id;
-                    lines[i].length = recalculateLength(lines[i]);
-                }
-            };
-        });
-
     });
-    return {
+    return Promise.resolve({
         points: points,
         lines: lines
-    }
+    });
 };
+function solvePointCollisions(points, existingLines) {
+    let lines = JSON.parse(JSON.stringify(existingLines));
+    function findPointInArray(node) {
+        return points.filter(point => node === point.id)[0];
+    };
+    function recalculateLength(line) {
+        let { startNode, endNode } = line;
+        return calcLength(findPointInArray(startNode), findPointInArray(endNode));
+    };
+    existingLines.forEach((line, i) => {
+        let { startNode, endNode } = line;
+        let m, b;
+        let isVertical = false;
+        startNode = findPointInArray(startNode);
+        endNode = findPointInArray(endNode);
+        if (startNode.x - endNode.x === 0) {
+            isVertical = true;
+            m = startNode.x;
+        } else {
+            m = (startNode.y - endNode.y)/(startNode.x - endNode.x);
+            b = startNode.y - m * startNode.x;
+        }
+        let minX = Math.min(startNode.x, endNode.x);
+        let maxX = Math.max(startNode.x, endNode.x);
+        let collisionRegistry = [];
+        points.forEach(point => {
+            if((point.x > minX && point.x < maxX) || (isVertical && startNode.x === point.x)) { //Does the x of the point fall within the range of the line.
+                if ((Math.abs((m*point.x+b) - point.y) < toleranceValue) || isVertical) { //Does the y of the point match with the calcuated value of the point's y at that x.
+                    //That point lies on the line here. Lets break the line around him.
+                    if (calcLength(point.id, findPointInArray(lines[i].endNode)) < toleranceValue) return; //Check that new line isn't gonna have a length of 0.
+                    collisionRegistry.push(point)
+                };
+            };
+        });
+        if (collisionRegistry.length > 0) {
+            collisionRegistry.push(findPointInArray(lines[i].startNode));
+            collisionRegistry.push(findPointInArray(lines[i].endNode));
+            lines.pop(i)
+        }
+        console.log(collisionRegistry)
+        for (let r = 0; r < collisionRegistry.length; r++) {
+            if (collisionRegistry[r + 1] === undefined) return;
+            lines.push({
+                id: getLineId(),
+                startNode: collisionRegistry[r].id,
+                endNode: collisionRegistry[r+1].id,
+                length: calcLength(collisionRegistry[r], collisionRegistry[r+1])
+            })
+        };
 
-function containsObject(obj, list) {
+        // lines.push({
+        //     id: getLineId(),
+        //     startNode: point.id,
+        //     endNode: lines[i].endNode,
+        //     length: calcLength(point, findPointInArray(lines[i].endNode))
+        // });
+        // lines[i].endNode = point.id;
+        // lines[i].length = recalculateLength(lines[i]);
+
+    })
+    return Promise.resolve({
+        points: points,
+        lines: lines
+    });
+};
+function objectNotInArray(obj, list) {
     for (let i = 0; i < list.length; i++) {
         if ((Math.abs(list[i].x - obj[0]) < toleranceValue) && (Math.abs(list[i].y - obj[1]) < toleranceValue)) {
             return [false, list[i]]
@@ -176,7 +216,6 @@ function containsObject(obj, list) {
     }
     return [true, null];
 };
-
 let pointCounter = 0;
 function getPointId() {
     return pointCounter++;
@@ -185,11 +224,9 @@ let lineCounter = 0;
 function getLineId() {
     return lineCounter++
 };
-
 function calcLength(point1, point2) {
     return Number(Math.sqrt(Math.pow(Math.abs(point1.x - point2.x), 2) + Math.pow(Math.abs(point1.y - point2.y), 2)).toFixed(4));
 };
-
 console.log('Blue Barn Parser Tool Started.');
 Promise.all([
     getShapeFile(pathToLineFile),
@@ -210,7 +247,7 @@ Promise.all([
     let points = [];
     let lines = [];
     rawLineInformation.forEach(line => {
-        let point = containsObject(line.coord1, points);
+        let point = objectNotInArray(line.coord1, points);
         if (point[0]) {
             point = {
                 id: getPointId(),
@@ -221,7 +258,7 @@ Promise.all([
         } else {
             point = point[1];
         }
-        let point2 = containsObject(line.coord2, points);
+        let point2 = objectNotInArray(line.coord2, points);
         if (point2[0]) {
             point2 = {
                 id: getPointId(),
@@ -238,32 +275,32 @@ Promise.all([
             endNode: (point.x > point2.x) ? point2.id : point.id,
             length: calcLength(point, point2)
         })
-        // if (calcLength(point, point2) === 0) {
-        //     console.log('big bad');
-        //     console.log({
-        //         line: line
-        //     })
-        // }
     });
-    let solvedLines = solveLineCollisions(points, lines);
-    return {
-        points: solvedLines.points.map(point => {
-            point = {
-                id: point.id,
-                x: point.x,
-                y: point.y,
-                z: 0
-            };
-            let elevPoint = containsObject([point.x, point.y], rawPointInformation);
-            if (elevPoint[0]) {
-                return point;
-            } else {
-                elevPoint[1].id = point.id;
-                return elevPoint[1];
-            }
-        }),
-        lines: solvedLines.lines
-    };
+    return solvePointCollisions(points, lines).then(result => {
+        // return solveLineCollisions(result.points, result.lines);
+        return result;
+    }).then(solvedLines => {
+        let { points, lines } = solvedLines;
+        return {
+            points: points.map(point => {
+                point = {
+                    id: point.id,
+                    x: point.x,
+                    y: point.y,
+                    z: 0
+                };
+                let elevPoint = objectNotInArray([point.x, point.y], rawPointInformation);
+                if (elevPoint[0]) {
+                    return point;
+                } else {
+                    elevPoint[1].id = point.id;
+                    return elevPoint[1];
+                }
+            }),
+            lines: lines
+        };
+    });
+
 }).then(shapeInformation => {
     let { lines, points } = shapeInformation;
     let saveFile = '[TITLE]\nbluebarn\n\n[JUNCTIONS]\n;ID              	Elev        	Demand      c	Pattern         \n';
@@ -287,3 +324,14 @@ Promise.all([
 }).finally(() => {
     console.log('File has finished processing. :)');
 });
+
+
+/*
+TODO:
+- Rewrite solver functions to be less dumb.
+- Refactor code.
+- Add electron front-end.
+- Account for min/max-X shift when editting lines in solver functions.
+- Enable use in modularised functions.
+
+*/
