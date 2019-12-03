@@ -49,12 +49,8 @@ function duplicatePoint(checkPoint, points) {
     let filteredPoints = points.filter( point => point.x === checkPoint.x && point.y === checkPoint.y);
     return (filteredPoints.length > 0) ? {value: true, point: filteredPoints[0]} : {value: false, point: checkPoint};
 };
-function clean(input) {
-    return JSON.parse(JSON.stringify(input));
-};
 
 //Main Functions
-
 let get = (function() {
     function resolveLineCollisions(lines, points, collisions) {
         let collisionRegistry = {};
@@ -69,10 +65,10 @@ let get = (function() {
             }, changeState(points));
             if (this.length(newPoint.point, points[line.endNode]) < toleranceValue || this.length(newPoint.point, points[secondLine.endNode]) < toleranceValue) return; //If your length is 0 so is your worth.
             if (!newPoint.value) {
-                newPoint = newPoint.point;
-                points[nodeId.getCurrent()] = clean(newPoint);
-                newPoint.id = nodeId.increment();
-            };
+                newPoint.point.id = nodeId.getCurrent();
+                points[nodeId.increment()] = newPoint.point;
+            }
+            newPoint = newPoint.point;
             newLine = {
                 startNode: newPoint.id,
                 endNode: line.endNode,
@@ -116,24 +112,23 @@ let get = (function() {
             return 0;
         }));
         groupedCollisions.forEach(collisionGroup => {
+            lines[collisionGroup[0].line.id].endNode = collisionGroup[0].point.id;
+            lines[collisionGroup[0].line.id].length = this.length(points[lines[collisionGroup[0].line.id].startNode], points[collisionGroup[0].point.id]);
             collisionGroup.forEach((collision, i) => {
-                if (i === 0) {
-                    lines[collision.line.id].endNode = collision.point.id;
-                    lines[collision.line.id].length = this.length(points[lines[collision.line.id].startNode], points[collision.point.id]);
-                    return;
-                }
-                if (i === collisionGroup.length-1) {
+                //Only three collisions, but requires four lines changes/additions - Rewrite Function.
+                if (i === collisionGroup.length - 1) {  
                     lines[pipeId.increment()] = {
-                        startNode: collisionGroup[i-1].point.id,
+                        startNode: collision.point.id,
                         endNode: collision.line.endNode,
-                        length: this.length(points[collisionGroup[i-1].point.id], points[collision.point.id]),
+                        length: this.length(points[collision.point.id], points[collision.line.endNode]),
                         lineId: collision.line.lineId
                     };
+                    return;
                 }
                 lines[pipeId.increment()] = {
-                    startNode: collisionGroup[i-1].point.id,
-                    endNode: collision.point.id,
-                    length: this.length(points[collisionGroup[i-1].point.id], points[collision.point.id]),
+                    startNode: collision.point.id,
+                    endNode: collisionGroup[i+1].point.id,
+                    length: this.length(points[collision.point.id], points[collisionGroup[i+1].point.id]),
                     lineId: collision.line.lineId
                 };
             });
@@ -176,7 +171,7 @@ let get = (function() {
                     if (line.equation.isVertical) xCollision = line.equation.grad;
                     if (secondLine.equation.isVertical) xCollision = secondLine.equation.grad;
                     let xOverlap = lineExtents(points[line.startNode], points[line.endNode], points[secondLine.startNode], points[secondLine.endNode]);
-                    if (Math.abs(xCollision - xOverlap.min) >= toleranceValue && Math.abs(xCollision - xOverlap.max) >= toleranceValue) {
+                    if (xCollision >= xOverlap.min && xCollision <= xOverlap) {
                         collisions.push({
                             id: collisionCounter.increment(),
                             line: line,
@@ -281,3 +276,44 @@ let load = {
     }
 };
 
+load.shapeFile(path.join(__dirname, 'RawInput/shapey.shp')).then(result => {
+    return get.pointCollisions(result.lines, result.points);
+    return result;
+}).then(result => {
+    return get.lineCollisions(result.lines, result.points)
+}).then(shapeInformation => {
+    let { lines, points } = shapeInformation;
+    lines = changeState(lines);
+    points = changeState(points);
+    let saveFile = '[TITLE]\nbluebarn\n\n[JUNCTIONS]\n;ID              	Elev        	Demand      c	Pattern         \n';
+    points.forEach(junction => {
+        saveFile += ` ${junction.id}              	${junction.z}           	0           	                	;\n`;
+    });
+    saveFile += '\n[PIPES]\n;ID              	Node1           	Node2           	Length      	Diameter    	Roughness   	MinorLoss   	Status\n';
+    lines.forEach(pipe => {
+        saveFile += ` ${pipe.id}              	${pipe.startNode}              	${pipe.endNode}              	${pipe.length}          	12          	100         	0           	Open  	;\n`;
+    });
+    saveFile += '\n[COORDINATES]\n;Node            	X-Coord         	Y-Coord\n';
+    points.forEach(coordinate => {
+        saveFile += ` ${coordinate.id}              	${coordinate.x}              	${coordinate.y}\n`;
+    });
+    saveFile += '\n[END]\n';
+
+    fs.writeFileSync('forProcessing.inp', saveFile, 'utf-8');
+}).catch(err => {
+    console.log('An error ocurred!');
+    console.log(err)
+}).finally(() => {
+    console.log('Finished')
+})
+
+// function loadPipeNetworks(networkArray) {
+//     networkArray.forEach(network => {
+//         let { shapefilePath, pointFilePath, forcedPointsPath, options } = network;
+//         let { checkInternalCollisions, checkGlobalCollisions, pipeDia } = options;
+
+        
+
+
+//     })
+// }
