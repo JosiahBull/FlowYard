@@ -100,6 +100,48 @@ let get = (function() {
         }
     };
     function resolvePointCollisions(lines, points, collisions) {
+        let groupedCollisions = {};
+        collisions.forEach(collision => {
+            if (collision.line.id in groupedCollisions) {
+                groupedCollisions[collision.line.id].push(collision);
+            } else {
+                groupedCollisions[collision.line.id] = [collision];
+            }
+        });
+        groupedCollisions = Object.values(groupedCollisions).map(collisionGroup => collisionGroup.sort((a, b) => { //Ensure collisions are ordered from closest to furthest away
+            let aDist = this.length(points[a.line.startNode], a.point);
+            let bDist = this.length(points[b.line.startNode], b.point);
+            if (aDist > bDist) return 1;
+            if (bDist > aDist) return -1;
+            return 0;
+        }));
+        groupedCollisions.forEach(collisionGroup => {
+            collisionGroup.forEach((collision, i) => {
+                if (i === 0) {
+                    lines[collision.line.id].endNode = collision.point.id;
+                    lines[collision.line.id].length = this.length(points[lines[collision.line.id].startNode], points[collision.point.id]);
+                    return;
+                }
+                if (i === collisionGroup.length-1) {
+                    lines[pipeId.increment()] = {
+                        startNode: collisionGroup[i-1].point.id,
+                        endNode: collision.line.endNode,
+                        length: this.length(points[collisionGroup[i-1].point.id], points[collision.point.id]),
+                        lineId: collision.line.lineId
+                    };
+                }
+                lines[pipeId.increment()] = {
+                    startNode: collisionGroup[i-1].point.id,
+                    endNode: collision.point.id,
+                    length: this.length(points[collisionGroup[i-1].point.id], points[collision.point.id]),
+                    lineId: collision.line.lineId
+                };
+            });
+        });
+        return {
+            lines: lines,
+            points: points
+        }
     };
     function lineEquation(startNode, endNode) {
         let isVertical = (startNode.x - endNode.x === 0) ? true : false; //Checking if this is a vertical line.
@@ -112,7 +154,11 @@ let get = (function() {
         }
     };
     function lineExtents(line1StartNode, line1EndNode, line2StartNode, line2EndNode) {
-        return {
+        return (line2StartNode === undefined && line2EndNode === undefined) ? 
+        {
+            min: Math.min(line1StartNode.x, line1EndNode.x),
+            max: Math.max(line1StartNode.x, line1EndNode.x)
+        } : {
             min: Math.max(Math.min(line1StartNode.x, line1EndNode.x), Math.min(line2StartNode.x, line2EndNode.x)),
             max: Math.min(Math.max(line1StartNode.x, line1EndNode.x), Math.max(line2StartNode.x, line2EndNode.x))
         }
@@ -143,7 +189,26 @@ let get = (function() {
             return resolveLineCollisions.call(this, lines, points, collisions);
         },
         pointCollisions: function(lines, points) {
-
+            let collisionCounter = new Counter;
+            let collisions = [];
+            changeState(lines).forEach(line => {
+                line.equation = lineEquation(points[line.startNode], points[line.endNode]);
+                changeState(points).forEach(point => {
+                    if (point.id === line.startNode || point.id === line.endNode) return; //If this point is at the start or end of this line, return.
+                    let extent = lineExtents(points[line.startNode], points[line.endNode]);
+                    if ((point.x >= extent.min && point.x < extent.max) || (line.equation.isVertical && line.equation.grad === point.x)) { //Does the x of the point fall within the range of the line.
+                        if (Math.abs((line.equation.grad * point.x + line.equation.yInt) - point.y) < toleranceValue || line.equation.isVertical) { //Does the y of the point match with the calculated value of the lines y at the point's x.
+                            collisions.push({
+                                id: collisionCounter.increment(),
+                                line: line,
+                                point: point,
+                                xCollision: point.x
+                            });
+                        }
+                    };
+                });
+            });
+            return resolvePointCollisions.call(this, lines, points, collisions);
         },
         length: function(point1, point2) {
             return round(Math.sqrt(Math.pow(Math.abs(point1.x - point2.x), 2) + Math.pow(Math.abs(point1.y - point2.y), 2)));
@@ -214,16 +279,5 @@ let load = {
                 }
             });
     }
-}
+};
 
-
-// function loadPipeNetworks(networkArray) {
-//     networkArray.forEach(network => {
-//         let { shapefilePath, pointFilePath, forcedPointsPath, options } = network;
-//         let { checkInternalCollisions, checkGlobalCollisions, pipeDia } = options;
-
-        
-
-
-//     })
-// }
