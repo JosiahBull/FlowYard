@@ -49,7 +49,6 @@ function duplicatePoint(checkPoint, points) {
     let filteredPoints = points.filter( point => point.x === checkPoint.x && point.y === checkPoint.y);
     return (filteredPoints.length > 0) ? {value: true, point: filteredPoints[0]} : {value: false, point: checkPoint};
 };
-
 //Main Functions
 let get = (function() {
     function resolveLineCollisions(lines, points, collisions) {
@@ -205,6 +204,40 @@ let get = (function() {
             });
             return resolvePointCollisions.call(this, lines, points, collisions);
         },
+        verticies: function(lines, points) {
+            let groupedLines = {};
+            points = changeState(changeState(points).map(point => {
+                point.count = 0;
+                changeState(lines).forEach(line => {
+                    if (line.startNode === point.id || line.endNode === point.id) point.count++;
+                });
+                return point;
+            }));
+            changeState(lines).forEach(line => {
+                if (line.lineId in groupedLines) {
+                    groupedLines[line.lineId].push(line);
+                } else {
+                    groupedLines[line.lineId] = [line];
+                }
+            });
+            Object.values(groupedLines).forEach(line => {
+                //TODO: Sort lines so that they go from left -> right (smallest startNode x to biggest startNode x?)
+                line.forEach((subLine, i) => {
+                    if (points[subLine.startNode].count === 2) {
+                        points[subLine.startNode].vertex = 'vertex'; //Check if point is the startNode.
+                    }
+                    if (points[subLine.endNode].count === 2) {
+                        points[subLine.endNode].vertex = 'vertex'; //Check if point is a vertex.
+                    }
+                })
+            })
+
+            return {
+                lines: lines,
+                points: points
+            }
+
+        },
         length: function(point1, point2) {
             return round(Math.sqrt(Math.pow(Math.abs(point1.x - point2.x), 2) + Math.pow(Math.abs(point1.y - point2.y), 2)));
         }
@@ -278,9 +311,11 @@ let load = {
 
 load.shapeFile(path.join(__dirname, 'RawInput/shapey.shp')).then(result => {
     return get.pointCollisions(result.lines, result.points);
-    return result;
 }).then(result => {
-    return get.lineCollisions(result.lines, result.points)
+    return get.lineCollisions(result.lines, result.points);
+}).then(result => {
+    console.log(get.verticies(result.lines, result.points));
+    return result;
 }).then(shapeInformation => {
     let { lines, points } = shapeInformation;
     lines = changeState(lines);
