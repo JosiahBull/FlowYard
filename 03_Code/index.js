@@ -205,33 +205,57 @@ let get = (function() {
             return resolvePointCollisions.call(this, lines, points, collisions);
         },
         verticies: function(lines, points) {
-            let groupedLines = {};
-            points = changeState(changeState(points).map(point => {
-                point.count = 0;
-                changeState(lines).forEach(line => {
-                    if (line.startNode === point.id || line.endNode === point.id) point.count++;
-                });
-                return point;
-            }));
+            let verticies = [];
+            let linesByPoint = {};
+            let groupedLinesByPoint = {};
             changeState(lines).forEach(line => {
-                if (line.lineId in groupedLines) {
-                    groupedLines[line.lineId].push(line);
+                if (line.startNode in linesByPoint) {
+                    linesByPoint[line.startNode].push(line);
                 } else {
-                    groupedLines[line.lineId] = [line];
+                    linesByPoint[line.startNode] = [line];
+                }
+                if (line.endNode in linesByPoint) {
+                    linesByPoint[line.endNode].push(line);
+                } else {
+                    linesByPoint[line.endNode] = [line];
                 }
             });
-            Object.values(groupedLines).forEach(line => {
-                //TODO: Sort lines so that they go from left -> right (smallest startNode x to biggest startNode x?)
-                line.forEach((subLine, i) => {
-                    if (points[subLine.startNode].count === 2) {
-                        points[subLine.startNode].vertex = 'vertex'; //Check if point is the startNode.
-                    }
-                    if (points[subLine.endNode].count === 2) {
-                        points[subLine.endNode].vertex = 'vertex'; //Check if point is a vertex.
-                    }
-                })
-            })
+            Object.values(linesByPoint).forEach(lineGroup => {
+                if (lineGroup.length !== 2) return; //Point is not a vertex.
+                if (lineGroup[0].lineId !== lineGroup[1].lineId) return; //Two different lines.
+                lineGroup = lineGroup.sort((a, b) => {
+                    if (a.endNode === b.startNode) return -1;
+                    if (b.endNode === a.startNode) return 1;
+                    return 0;
+                });
+                if (lineGroup[0].lineId in groupedLinesByPoint) {
+                    groupedLinesByPoint[lineGroup[0].lineId].push(lineGroup);
+                } else {
+                    groupedLinesByPoint[lineGroup[0].lineId] = [lineGroup];
+                }
+                
+                // console.log(lineGroup[0].id)
+                // lines[lineGroup[0].id].length += lines[lineGroup[1].id].length; //Update length of first point.
+                // lines[lineGroup[0].id].endNode = lines[lineGroup[1].id].endNode; //Update the endnode of the first point.
+                // console.log('deleted: ' + lineGroup[1].id);
+                // delete lines[lineGroup[1].id]; //Remove the second line bc it's pointless.
+            });
+            Object.values(groupedLinesByPoint).forEach(lineGroup => {
+                let exIds = [];
+                lineGroup = lineGroup.flat().sort((a, b) => {
+                    if (a.endNode === b.startNode) return -1;
+                    if (b.endNode === a.startNode) return 1;
+                    return 0;
+                }).filter(line => {
+                    if (exIds.includes(line.id)) return false;
+                    exIds.push(line.id);
+                    return true;
+                });
 
+                //Note that this will leave line gaps, write a piece of verificiation code to cehck that the endNode of one lineSeg is equal to the startNode of the next lineSeg - and if not then either disqualify the line from being vertified, or seperate it out into a new lineGroup to be processed seperately.
+
+                console.log('\n\n-----------\n\n')
+            });
             return {
                 lines: lines,
                 points: points
@@ -314,7 +338,7 @@ load.shapeFile(path.join(__dirname, 'RawInput/shapey.shp')).then(result => {
 }).then(result => {
     return get.lineCollisions(result.lines, result.points);
 }).then(result => {
-    console.log(get.verticies(result.lines, result.points));
+    get.verticies(result.lines, result.points);
     return result;
 }).then(shapeInformation => {
     let { lines, points } = shapeInformation;
