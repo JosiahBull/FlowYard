@@ -2,7 +2,6 @@ const fs = require('fs');
 const path = require('path');
 const shapefile = require('shapefile');
 const csv = require('csvtojson');
-const pathToPointFile = path.join(__dirname, 'RawInput/points.csv');
 const toleranceValue = 0.01;
 
 const Counter = (function() {
@@ -23,7 +22,7 @@ const pipeId = new Counter;
 const nodeId = new Counter;
 //Helper Functions
 function round(value) {
-    return Number(value.toFixed(4));
+    return Number(Number(value).toFixed(4));
 };
 function changeState(input) {
     let output;
@@ -46,7 +45,7 @@ function changeState(input) {
     return output;
 };
 function duplicatePoint(checkPoint, points) {
-    let filteredPoints = points.filter( point => point.x === checkPoint.x && point.y === checkPoint.y);
+    let filteredPoints = points.filter(point => point.x === checkPoint.x && point.y === checkPoint.y);
     return (filteredPoints.length > 0) ? {value: true, point: filteredPoints[0]} : {value: false, point: checkPoint};
 };
 //Main Functions
@@ -130,25 +129,6 @@ let get = (function() {
                     length: this.length(points[collision.point.id], points[collisionGroup[i+1].point.id]),
                     lineId: collision.line.lineId
                 };
-                
-                if (this.length(points[collision.point.id], points[collisionGroup[i+1].point.id]) === 0) {
-                    console.log({
-                        lengthInfo: {
-                            length: this.length(points[collision.point.id], points[collisionGroup[i+1].point.id]),
-                            lengthComp1: points[collision.point.id],
-                            lengthComp2: points[collisionGroup[i+1].point.id],
-                            lengthComp1Id: collision.point,
-                            lengthComp2Id:  collisionGroup[i+1].point
-                        },
-                        pipeId: pipeId.getCurrent(),
-                        startNode: collision.point.id,
-                        endNode: collisionGroup[i+1].point.id,
-                        lineId: collision.line.lineId,
-                        collision: collision,
-                        collisionGroup: collisionGroup
-                    })
-                    console.log('\n\n---------\n\n')
-                }
             });
         });
         return {
@@ -222,6 +202,17 @@ let get = (function() {
                 });
             });
             return resolvePointCollisions.call(this, lines, points, collisions);
+        },
+        addZDimension: function(points, replacePoints) {
+            return changeState(points.map(point => {                
+                let checkPoint = duplicatePoint(point, replacePoints, true);
+                if (checkPoint.value) {
+                    point.z = checkPoint.point.z;
+                } else {
+                    point.z = 0;
+                }
+                return point;
+            }));
         },
         verticies: function(lines, points) {
             let verticies = {};
@@ -371,11 +362,13 @@ let load = {
         })
             .fromFile(pointFilePath)
             .then(data => {
-                return {
-                    x: data[0],
-                    y: data[1],
-                    z: data[2]
-                }
+                return data.map(point => {
+                    return {
+                        x: round(point[0]),
+                        y: round(point[1]),
+                        z: round(point[2])
+                    }
+                })
             });
     }
 };
@@ -386,6 +379,14 @@ load.shapeFile(path.join(__dirname, 'RawInput/shapey.shp')).then(result => {
     return get.lineCollisions(result.lines, result.points);
 }).then(result => {
     return get.verticies(result.lines, result.points);
+}).then(result => {
+    return load.pointFile(path.join(__dirname, 'RawInput/points.csv')).then(replacePoints => {
+        return {
+            points: get.addZDimension(changeState(result.points), replacePoints),
+            verticies: result.verticies,
+            lines: result.lines
+        }
+    });
 }).then(shapeInformation => {
     let { lines, points, verticies } = shapeInformation;
     lines = changeState(lines);
