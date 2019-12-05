@@ -130,6 +130,25 @@ let get = (function() {
                     length: this.length(points[collision.point.id], points[collisionGroup[i+1].point.id]),
                     lineId: collision.line.lineId
                 };
+                
+                if (this.length(points[collision.point.id], points[collisionGroup[i+1].point.id]) === 0) {
+                    console.log({
+                        lengthInfo: {
+                            length: this.length(points[collision.point.id], points[collisionGroup[i+1].point.id]),
+                            lengthComp1: points[collision.point.id],
+                            lengthComp2: points[collisionGroup[i+1].point.id],
+                            lengthComp1Id: collision.point,
+                            lengthComp2Id:  collisionGroup[i+1].point
+                        },
+                        pipeId: pipeId.getCurrent(),
+                        startNode: collision.point.id,
+                        endNode: collisionGroup[i+1].point.id,
+                        lineId: collision.line.lineId,
+                        collision: collision,
+                        collisionGroup: collisionGroup
+                    })
+                    console.log('\n\n---------\n\n')
+                }
             });
         });
         return {
@@ -254,11 +273,12 @@ let get = (function() {
                 return valid;
             });
             groupedLinesByPoint.forEach(lineGroup => {
-                if (lineGroup[0].id === 368) {
+                if (lineGroup[0].id === 325) {
                     console.log(lineGroup)
+                    return;
                 }
                 lines[lineGroup[0].id].endNode = lineGroup[lineGroup.length-1].endNode;
-                lines[lineGroup[0].id].length = lineGroup.reduce((a, b) => a + (b.length || 0), 0);
+                lines[lineGroup[0].id].length = round(lineGroup.reduce((a, b) => a + (b.length || 0), 0));
                 lineGroup.forEach((line, i) => {
                     if (i === lineGroup.length-1) {
                         delete lines[line.id];
@@ -302,20 +322,31 @@ let load = {
             if (feature.type !== 'Feature') throw new Error('Unrecognised feature type of: ' + feature.type);
             if (feature.geometry.type !== 'LineString') throw new Error('Unrecognised feature type of: ' + feature.geometry.type);
             lineId = lineCounter.increment();
-            feature.geometry.coordinates.forEach((point, i) => {
+            let i = 0;
+            feature.geometry.coordinates.forEach(point => {
                 if (i === feature.geometry.coordinates.length-1) return;
                 if (i === 0) { //If it's the first element, create two so that the first line can join to something.
-                    lastPointId = nodeId.increment();
-                    points[lastPointId] = {
+                    let firstPoint = duplicatePoint({
                         x: round(point[0]),
                         y: round(point[1])
+                    }, changeState(points));
+                    if (!firstPoint.value) {
+                        lastPointId = nodeId.increment();
+                        points[lastPointId] = firstPoint.point;
+                    } else {
+                        lastPointId = firstPoint.point.id
                     }
                 }
-                pointId = nodeId.increment();
-                points[pointId] = {
+                let secondPoint = duplicatePoint({
                     x: round(feature.geometry.coordinates[i + 1][0]),
                     y: round(feature.geometry.coordinates[i + 1][1])
-                };
+                }, changeState(points));
+                if (!secondPoint.value) {
+                    pointId = nodeId.increment();
+                    points[pointId] = secondPoint.point;
+                } else {
+                    pointId = secondPoint.point.id;
+                }
                 lines[pipeId.increment()] = {
                     startNode: lastPointId,
                     endNode: pointId,
@@ -323,6 +354,7 @@ let load = {
                     lineId: lineId
                 };
                 lastPointId = pointId;
+                i++;
             });
         });
         return {
