@@ -290,6 +290,27 @@ let get = (function() {
         },
         length: function(point1, point2) {
             return round(Math.sqrt(Math.pow(Math.abs(point1.x - point2.x), 2) + Math.pow(Math.abs(point1.y - point2.y), 2)));
+        },
+        saveFile : function(lines, points, verticies) {
+            points = changeState(points);
+            let saveFile = '[TITLE]\nbluebarn\n\n[JUNCTIONS]\n;ID              	Elev        	Demand      c	Pattern         \n';
+            points.forEach(junction => {
+                saveFile += ` ${junction.id}              	${junction.z}           	0           	                	;\n`;
+            });
+            saveFile += '\n[PIPES]\n;ID              	Node1           	Node2           	Length      	Diameter    	Roughness   	MinorLoss   	Status\n';
+            changeState(lines).forEach(pipe => {
+                saveFile += ` ${pipe.id}              	${pipe.startNode}              	${pipe.endNode}              	${pipe.length}          	12          	100         	0           	Open  	;\n`;
+            });
+            saveFile += '\n[COORDINATES]\n;Node            	X-Coord         	Y-Coord\n';
+            points.forEach(coordinate => {
+                saveFile += ` ${coordinate.id}              	${coordinate.x}              	${coordinate.y}\n`;
+            });
+            saveFile +='\n[VERTICES]\n'
+            verticies = changeState(verticies).forEach(vertex => {
+                saveFile += ` ${vertex.lineId}              	${vertex.x}              	${vertex.y}\n`
+            });
+            saveFile += '\n[END]\n';
+            return saveFile;
         }
     }
 })();
@@ -389,27 +410,6 @@ load.shapeFile(path.join(__dirname, 'RawInput/shapey.shp')).then(result => {
     });
 }).then(shapeInformation => {
     let { lines, points, verticies } = shapeInformation;
-    lines = changeState(lines);
-    points = changeState(points);
-    verticies = changeState(verticies);
-    let saveFile = '[TITLE]\nbluebarn\n\n[JUNCTIONS]\n;ID              	Elev        	Demand      c	Pattern         \n';
-    points.forEach(junction => {
-        saveFile += ` ${junction.id}              	${junction.z}           	0           	                	;\n`;
-    });
-    saveFile += '\n[PIPES]\n;ID              	Node1           	Node2           	Length      	Diameter    	Roughness   	MinorLoss   	Status\n';
-    lines.forEach(pipe => {
-        saveFile += ` ${pipe.id}              	${pipe.startNode}              	${pipe.endNode}              	${pipe.length}          	12          	100         	0           	Open  	;\n`;
-    });
-    saveFile += '\n[COORDINATES]\n;Node            	X-Coord         	Y-Coord\n';
-    points.forEach(coordinate => {
-        saveFile += ` ${coordinate.id}              	${coordinate.x}              	${coordinate.y}\n`;
-    });
-    saveFile +='\n[VERTICES]\n'
-    verticies.forEach(vertex => {
-        saveFile += ` ${vertex.lineId}              	${vertex.x}              	${vertex.y}\n`
-    });
-    saveFile += '\n[END]\n';
-
     fs.writeFileSync('forProcessing.inp', saveFile, 'utf-8');
 }).catch(err => {
     console.log('An error ocurred!');
@@ -418,13 +418,13 @@ load.shapeFile(path.join(__dirname, 'RawInput/shapey.shp')).then(result => {
     console.log('Finished')
 })
 
-// function loadPipeNetworks(networkArray) {
-//     networkArray.forEach(network => {
-//         let { shapefilePath, pointFilePath, forcedPointsPath, options } = network;
-//         let { checkInternalCollisions, checkGlobalCollisions, pipeDia } = options;
-
+function loadPipeNetworks(networkArray) {
+    return networkArray.map(network => {
+        let { shapefilePath, pointFilePath, forcedPointsPath, options } = network;
+        let { checkInternalCollisions, checkGlobalCollisions, pipeDia } = options;
+        
+        
         
 
-
-//     })
-// }
+    })
+}
