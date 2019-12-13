@@ -50,6 +50,13 @@ function duplicatePoint(checkPoint, points) {
 };
 //Main Functions
 let get = (function() {
+    function quickSort(lineGroup) {
+        return lineGroup.sort((a, b) => {
+            if (a.endNode === b.startNode) return -1;
+            if (b.endNode === a.startNode) return 1;
+            return 0;
+        });
+    };
     function resolveLineCollisions(lines, points, collisions) {
         let collisionRegistry = {};
         collisions.forEach(collision => {
@@ -216,9 +223,7 @@ let get = (function() {
         },
         verticies: function(lines, points) {
             let verticies = {};
-            let linesByPoint = {};
-            let groupedLinesByPoint = {};
-            changeState(lines).forEach(line => {
+            let linesByPoint = Object.values(changeState(lines).reduce((linesByPoint, line) => {
                 if (line.startNode in linesByPoint) {
                     linesByPoint[line.startNode].push(line);
                 } else {
@@ -229,28 +234,21 @@ let get = (function() {
                 } else {
                     linesByPoint[line.endNode] = [line];
                 }
-            });
-            Object.values(linesByPoint).forEach(lineGroup => {
-                if (lineGroup.length !== 2) return; //Point is not a vertex.
-                if (lineGroup[0].lineId !== lineGroup[1].lineId) return; //Two different lines.
-                lineGroup = lineGroup.sort((a, b) => {
-                    if (a.endNode === b.startNode) return -1;
-                    if (b.endNode === a.startNode) return 1;
-                    return 0;
-                });
+                return linesByPoint
+            }, {}));
+            let groupedLinesByPoint = Object.values(linesByPoint.reduce((groupedLinesByPoint, lineGroup) => {
+                if (lineGroup.length !== 2) return groupedLinesByPoint; //Point is not a vertex.
+                if (lineGroup[0].lineId !== lineGroup[1].lineId) return groupedLinesByPoint; //Two different lines.
+                lineGroup = quickSort(lineGroup);
                 if (lineGroup[0].lineId in groupedLinesByPoint) {
                     groupedLinesByPoint[lineGroup[0].lineId].push(lineGroup);
                 } else {
                     groupedLinesByPoint[lineGroup[0].lineId] = [lineGroup];
                 }
-            });
-            groupedLinesByPoint = Object.values(groupedLinesByPoint).map(lineGroup => {
+                return groupedLinesByPoint;
+            }, {})).map(lineGroup => {
                 let exIds = [];
-                return lineGroup.flat().sort((a, b) => {
-                    if (a.endNode === b.startNode) return -1;
-                    if (b.endNode === a.startNode) return 1;
-                    return 0;
-                }).filter(line => {
+                return quickSort(lineGroup.flat()).filter(line => {
                     if (exIds.includes(line.id)) return false;
                     exIds.push(line.id);
                     return true;
@@ -258,30 +256,26 @@ let get = (function() {
             }).filter(lineGroup => {
                 let valid = true;
                 lineGroup.forEach((line, i) => {
-                    if (i === lineGroup.length -1) return; //Don't bother comparing the last line in the set.
-                    if (line.endNode !== lineGroup[i + 1].startNode) valid = false;
+                    if (i === lineGroup.length-1) return; //Don't bother comparing the last line in the set.
+                    if (line.endNode !== lineGroup[i+1].startNode) valid = false;
                 });
                 return valid;
-            });
+            }); //Group the lines by point.
             groupedLinesByPoint.forEach(lineGroup => {
-                if (lineGroup[0].id === 325) {
-                    console.log(lineGroup)
-                    return;
-                }
-                lines[lineGroup[0].id].endNode = lineGroup[lineGroup.length-1].endNode;
-                lines[lineGroup[0].id].length = round(lineGroup.reduce((a, b) => a + (b.length || 0), 0));
+                lines[lineGroup[0].id].endNode = lineGroup[lineGroup.length-1].endNode; //Update endNode of line.
+                lines[lineGroup[0].id].length = round(lineGroup.reduce((a, b) => a + (b.length || 0), 0)); //Update length of line.
                 lineGroup.forEach((line, i) => {
                     if (i === lineGroup.length-1) {
                         delete lines[line.id];
                         return;
-                    }; //Dont check the final item in this array, as the endNode of it is the actual endNode.
-                    points[line.endNode].lineId = lineGroup[0].id
+                    }; //Don't check the final item in this array, as the endNode of it is the new final endNode.
+                    points[line.endNode].lineId = lineGroup[0].id;
                     verticies[line.endNode] = points[line.endNode];
                     delete points[line.endNode];
-                    if (i === 0) return; //Don't delete the first item Id, as it is the final line.
+                    if (i === 0) return; //Don't delete teh first item Id, as it is the line we want to keep.
                     delete lines[line.id];
-                });
-            });
+                })
+            }); //Figure out the new points.
             return {
                 lines: lines,
                 points: points,
@@ -410,7 +404,7 @@ load.shapeFile(path.join(__dirname, 'RawInput/shapey.shp')).then(result => {
     });
 }).then(shapeInformation => {
     let { lines, points, verticies } = shapeInformation;
-    fs.writeFileSync('forProcessing.inp', saveFile, 'utf-8');
+    fs.writeFileSync('forProcessing.inp', get.saveFile(lines, points, verticies), 'utf-8');
 }).catch(err => {
     console.log('An error ocurred!');
     console.log(err)
