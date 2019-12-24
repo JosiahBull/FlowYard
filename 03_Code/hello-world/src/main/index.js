@@ -1,5 +1,6 @@
-import { app, BrowserWindow, dialog } from 'electron'
-
+import { app, BrowserWindow, dialog, IpcMain, ipcMain } from 'electron';
+import { EventEmitter } from 'events';
+const networkProcessor = require('./processor.js').default;
 /**
  * Set `__static` path to static files in production
  * https://simulatedgreg.gitbooks.io/electron-vue/content/en/using-static-assets.html
@@ -46,6 +47,13 @@ app.on('activate', () => {
     createWindow()
   }
 })
+
+ipcMain.on('processPipeNetworks', (event, args) => {
+  networkProcessor(args.pipeNetworks, args.globalNetworkConfig).then(result => {
+    event.reply('pipeNetworksProcessed', result)
+  })
+});
+
 
 /**
  * Auto Updater

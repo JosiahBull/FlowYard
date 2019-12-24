@@ -222,7 +222,26 @@ let get = (function() {
             }));
         },
         verticies: function(lines, points) {
+            function verifyLineGroup(lineGroup) {
+                let valid = true;
+                let index, newLineGroups;
+                lineGroup.forEach((line, i) => {
+                    if (i === lineGroup.length-1) return;
+                    if (line.endNode !== lineGroup[i+1].startNode) {
+                        valid = false;
+                        index = i;
+                        newLineGroups = [lineGroup.slice(0, i+1), lineGroup.slice(i+1, lineGroup.length)]
+                    };
+                });
+                return {
+                    lineGroup: lineGroup,
+                    valid: valid,
+                    index: index,
+                    newLineGroups: newLineGroups
+                }
+            }
             let verticies = {};
+            // let invalidLines = [];
             let linesByPoint = Object.values(changeState(lines).reduce((linesByPoint, line) => {
                 if (line.startNode in linesByPoint) {
                     linesByPoint[line.startNode].push(line);
@@ -254,13 +273,11 @@ let get = (function() {
                     return true;
                 });
             }).filter(lineGroup => {
-                let valid = true;
-                lineGroup.forEach((line, i) => {
-                    if (i === lineGroup.length-1) return; //Don't bother comparing the last line in the set.
-                    if (line.endNode !== lineGroup[i+1].startNode) valid = false;
-                });
-                return valid;
+                let valid = verifyLineGroup(lineGroup);
+                //TODO: Do something if there are further extra lines.
+                return valid.valid;
             }); //Group the lines by point.
+            // console.log(invalidLines)
             groupedLinesByPoint.forEach(lineGroup => {
                 lines[lineGroup[0].id].endNode = lineGroup[lineGroup.length-1].endNode; //Update endNode of line.
                 lines[lineGroup[0].id].length = round(lineGroup.reduce((a, b) => a + (b.length || 0), 0)); //Update length of line.
@@ -388,37 +405,60 @@ let load = {
     }
 };
 
-load.shapeFile(path.join(__dirname, 'RawInput/shapey.shp')).then(result => {
-    return get.pointCollisions(result.lines, result.points);
-}).then(result => {
-    return get.lineCollisions(result.lines, result.points);
-}).then(result => {
-    return get.verticies(result.lines, result.points);
-}).then(result => {
-    return load.pointFile(path.join(__dirname, 'RawInput/points.csv')).then(replacePoints => {
-        return {
-            points: get.addZDimension(changeState(result.points), replacePoints),
-            verticies: result.verticies,
-            lines: result.lines
-        }
+function things(pipeNetowrkArr) {
+    let boi = '';
+    //Expected Input
+    pipeNetowrkArr.forEach(network => {
+        let { shapeFile, pointFile, checkInternalCollisions, checkGlobalCollisions, diameter, simplifyVerts } = network;
+        load.shapeFile(shapeFile).then(shapeFile => {
+            if (checkInternalCollisions) {
+                return get.pointCollisions(shapeFile.lines, shapeFile.points).then(result => {
+                    return get.lineCollisions(result.lines, result.points);
+                })
+            }
+            return shapeFile;
+        }).then(result => {
+            if (checkGlobalCollisions) {
+                //Todo
+            }
+            return result;
+        }).then(result => {
+            if (simplifyVerts) {
+                return get.verticies(result.lines, result.points);
+            }
+            return result;
+        }).then(result => {
+            if (pointFile !== '') {
+                return load.pointFile(path.join(__dirname, 'RawInput/points.csv')).then(replacePoints => {
+                    return {
+                        points: get.addZDimension(changeState(result.points), replacePoints),
+                        verticies: result.verticies,
+                        lines: result.lines
+                    }
+                });
+            }
+            return result;
+        }).then(shapeInformation => {
+            boi = shapeInformation;
+        }).catch(err => {
+            console.error(err);
+        });
     });
-}).then(shapeInformation => {
-    let { lines, points, verticies } = shapeInformation;
-    fs.writeFileSync('forProcessing.inp', get.saveFile(lines, points, verticies), 'utf-8');
-}).catch(err => {
-    console.log('An error ocurred!');
-    console.log(err)
-}).finally(() => {
-    console.log('Finished')
-})
-
-function loadPipeNetworks(networkArray) {
-    return networkArray.map(network => {
-        let { shapefilePath, pointFilePath, forcedPointsPath, options } = network;
-        let { checkInternalCollisions, checkGlobalCollisions, pipeDia } = options;
-        
-        
-        
-
-    })
+    return boi;
 }
+
+
+let tester = [
+    {
+      checkGlobalIntersections: false,
+      checkInternalIntersections: true,
+      diameter: 100,
+      id: 0,
+      pointFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\points.csv',
+      shapeFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\shapey.shp',
+      simplifyVerts: true
+    }
+  ]
+
+console.log(things(tester));
+// console.log(__dirname)

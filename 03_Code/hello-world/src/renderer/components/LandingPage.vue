@@ -4,20 +4,20 @@
       <h1>Network Configuration</h1>
       <div id="networkConfigWrapper">
         <div v-for="network in pipeNetworks" class="networkItem">
-          <h3>Pipe Network: {{network.id}}</h3>
+          <h2>Pipe Network: {{network.id}}</h2>
           <div class="networkDivider"></div>
-          <h3>Shape File: {{network.shapeFile}}</h3>
-          <h3>Point File: {{network.pointFile}}</h3>
+          <h3>Shape File: <button v-on:click="browseFile().then(filePath => network.shapeFile = filePath)">Click to Select</button>{{network.shapeFile.replace(/^.*[\\\/]/, '')}}</h3>
+          <h3>Point File: <button v-on:click="browseFile().then(filePath => network.pointFile = filePath)">Click to Select</button>{{network.pointFile.replace(/^.*[\\\/]/, '')}}</h3>
           <div class="networkDivider"></div>
-          <input type="checkbox" id="checkbox" v-model="network.checkInternalIntersections">
-          <h4>Check Internal Intersections: {{network.checkInternalIntersections}}</h4>
-          <h4>Check Global Intersections: {{network.checkGlobalIntersections}}</h4>
-          <h4>Pipe Diameter: {{network.diameter}}</h4>
+          <h4>Check Internal Intersections: <input type="checkbox" v-model="network.checkInternalIntersections"> </h4>
+          <h4>Pipe Diameter: <input v-model="network.diameter" placeholder="click to enter (mm)"> </h4>
         </div>
+        <h4>Check Global Intersections: <input type="checkbox" v-model="globalNetworkConfig.checkGlobalCollisions"> </h4>
+        <h4>Simplify Verticies? <input type="checkbox" v-model="globalNetworkConfig.simplifyVerticies"> </h4>
       </div>
     </div>
   
-    <div id="outputPreviewWRapper" v-on:click="test()">
+    <div id="outputPreviewWRapper">
       <h1>Output Preview</h1>
       <canvas id="outputCanvas"></canvas>
     </div>
@@ -32,24 +32,128 @@
 
       </div>
     </div>
-    <button name="processNetworkButton" type="button" id="processButton">Process!</button>
+    <button name="processNetworkButton" type="button" id="processButton" v-on:click="process()">Process!</button>
     <div id="footer"></div>
   </div>
 </template>
 
 <script>
-  import SystemInformation from './LandingPage/SystemInformation'
-  const {dialog} = require('electron');
-  
+  import SystemInformation from './LandingPage/SystemInformation';
+  import { net, dialog, ipcRenderer } from 'electron';
+  let canvas, processedPipeNetwork, ctx, dpi;
+  window.onload = function() {
+    canvas = document.getElementById('outputCanvas');
+    ctx = canvas.getContext('2d');
+    dpi = window.devicePixelRatio;
+    fixDpi();
+  };
+  function fixDpi() {
+    let style_height = +getComputedStyle(canvas).getPropertyValue("height").slice(0, -2);
+    let style_width = +getComputedStyle(canvas).getPropertyValue("width").slice(0, -2);
+    canvas.setAttribute('height', style_height * dpi);
+    canvas.setAttribute('width', style_width * dpi);
+  }
+  function changeState(input) {
+    let output;
+    if (Array.isArray(input)) {
+        output = {};
+        input.forEach(subObj => {
+            let subObjId = subObj.id;
+            delete subObj.id;
+            output[subObjId] = subObj;
+        })
+    } else {
+        output = [];
+        Object.keys(input).forEach(subObj => {
+            output.push({
+                ...input[subObj],
+                id: Number(subObj)
+            })
+        })
+    }
+    return output;
+  };
+  function updateCanvasDisplay() {
+    let { lines, points, verticies } = processedPipeNetwork.raw;
+    let minX = points[0].x;
+    let minY = points[0].y;
+    let maxX = 0;
+    let maxY = 0;
+    (changeState(points).concat(changeState(verticies))).forEach(point => {
+      if (point.x < minX) minX = point.x;
+      if (point.x > maxX) maxX = point.x;
+      if (point.y < minY) minY = point.y;
+      if (point.y > maxY) maxY = point.y;
+    });
+    let scaleFactor = Math.min(((canvas.width * 0.9)/(maxX-minX)), ((canvas.height * 0.9)/(maxY-minY)));
+    points = changeState(changeState(points).map(point => {
+      point.x = (point.x * scaleFactor - minX * scaleFactor) + canvas.width * 0.05;
+      point.y = (point.y * scaleFactor - minY * scaleFactor) + canvas.height * 0.05;
+      return point;
+    }));
+    verticies = changeState(changeState(verticies).map(vertex => {
+      vertex.x = (vertex.x * scaleFactor - minX * scaleFactor) + canvas.width * 0.05;
+      vertex.y = (vertex.y * scaleFactor - minY * scaleFactor) + canvas.height * 0.05;
+      return vertex;
+    }));
+    let verticiesByLineId = changeState(verticies).reduce((verticiesByLineId, vertex) => {
+      if (Object.keys(verticiesByLineId).includes(vertex)) {
+        verticiesByLineId[vertex.lineId].push(vertex);
+      } else {
+        verticiesByLineId[vertex.lineId] = [vertex]
+      }
+      return verticiesByLineId;
+    }, {});
+    let paths = changeState(lines).map(line => {
+      let path = [];
+      path.push(points[line.startNode]);
+      if (line.lineId in verticiesByLineId) {
+        verticiesByLineId[line.lineId].forEach(vertex => {
+          vertex.vertex = true;
+          path.push(vertex);
+        });
+      }
+      path.push(points[line.endNode]);
+      return path;
+    });
+    fixDpi();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    paths.forEach(path => {
+      ctx.beginPath();
+      ctx.lineWidth = 2;
+      ctx.moveTo(path[0].x, path[0].y);
+      path.forEach((node, i) => {
+        if (i === 0) return;
+        if (node === undefined) return;
+        ctx.lineTo(node.x, node.y);
+      })
+      ctx.closePath();
+      ctx.stroke();
+    })
+  };
+
+  ipcRenderer.on('pipeNetworksProcessed', (event, args) => {
+    processedPipeNetwork = args;
+    updateCanvasDisplay();
+  });
   export default {
     name: 'landing-page',
     components: { SystemInformation },
     methods: {
-      open (link) {
+      open(link) {
         this.$electron.shell.openExternal(link)
       },
-      test () {
-        console.log(dialog.showOpenDialog({properties: ['openFile', 'openDirectory', 'multiSelections']}));
+      process() {
+        //Add some verifciation code here to make sure everything is valid and happy before sending to the processor, also needs to highlight the offending boi red.
+        ipcRenderer.send('processPipeNetworks', {pipeNetworks: this.$data.pipeNetworks, globalNetworkConfig: this.$data.globalNetworkConfig});
+      },
+      browseFile() {
+        return dialog.showOpenDialog().then(result => {
+          let {cancled, filePaths} = result;
+          if (!cancled) {
+            return filePaths[0];
+          }
+        })
       }
     },
     data: function() {
@@ -57,21 +161,17 @@
         pipeNetworks: [
           {
             id: 0,
-            shapeFile: 'Click To Select',
-            pointFile: 'Click To Select',
+            shapeFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\shapey.shp',
+            pointFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\points.csv',
             checkInternalIntersections: true,
-            checkGlobalIntersections: false,
-            diameter: 100
-          },
-          {
-            id: 1,
-            shapeFile: 'Click To Select',
-            pointFile: 'Click To Select',
-            checkInternalIntersections: true,
-            checkGlobalIntersections: false,
-            diameter: 150
+            diameter: 100,
+            valid: true
           }
-        ]
+        ],
+        globalNetworkConfig : {
+          checkGlobalCollisions: false,
+          simplifyVerticies: false
+        }
       }
     }
   }
@@ -95,11 +195,11 @@
   }
   /* Processing Button CSS */
   #processButton {
-    height: 80px;
-    width: 220px;
+    height: 10%;
+    width: 15%;
     position:absolute;
-    bottom: 55px;
-    right: 70px;
+    bottom: 5%;
+    right: 3%;
     border-radius: 7px;
     font-size: 25px;
   }
@@ -114,12 +214,12 @@
   }
   /* Network Config Window Things */
   #networkConfigWindow {
-    width: 830px;
+    width: 35%;
     height: 90%;
     background-color: #6acc8c;
     position: absolute;
     top: 5%;
-    left: 50px;
+    left: 3%;
   }
   #networkConfigWrapper {
     position: absolute;
@@ -130,15 +230,39 @@
     background-color: darkblue;
   }
   .networkItem {
+    width: 92%;
+    position: relative;
+    margin: 2% auto;
     background-color: aqua;
+    border-style: solid;
+    border-width: 4px;
+    border-color: black;
+  }
+  .networkItem .networkDivider {
+    height: 3px;
+    width: 100%;
+    position: relative;
+    background-color: darkgray;
+  }
+  .networkItem h2 {
+    padding: 10px;
+    margin: 0;
+  }
+  .networkItem h3 {
+    padding: 5px;
+    margin: 0;
+  }
+  .networkItem h4 {
+    padding: 5px;
+    margin: 0;
   }
   /* Output Preview Things */
   #outputPreviewWRapper {
-    width: 900px;
+    width: 45%;
     height: 65%;
     background-color: #6acc8c;
     position: absolute;
-    right: 70px;
+    right: 3%;
     top: 5%;
   }
   #outputCanvas {
@@ -147,16 +271,16 @@
     top: 11%;
     width: 94%;
     height: 86%;
-    background-color: darkblue;
+    background-color: lightblue;
   }
   /* Output Info Things */
   #outputInfoWrapper {
-    width: 600px;
+    width: 25%;
     height: 20%;
     background-color: #5891ed;
     position:absolute;
     bottom: 5%;
-    right: 370px;
+    right: 23%;
   }
   #consoleOut {
 
