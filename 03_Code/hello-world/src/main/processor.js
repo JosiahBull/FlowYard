@@ -1,5 +1,4 @@
 const fs = require('fs');
-const path = require('path');
 const shapefile = require('shapefile');
 const csv = require('csvtojson');
 const toleranceValue = 0.01;
@@ -248,10 +247,10 @@ let get = (function() {
                     index: index,
                     newLineGroups: newLineGroups
                 }
-            }
+            };
             let verticies = {};
             // let invalidLines = [];
-            let linesByPoint = Object.values(changeState(lines).reduce((linesByPoint, line) => {
+            let linesByPoint = changeState(lines).reduce((linesByPoint, line) => {
                 if (line.startNode in linesByPoint) {
                     linesByPoint[line.startNode].push(line);
                 } else {
@@ -263,30 +262,55 @@ let get = (function() {
                     linesByPoint[line.endNode] = [line];
                 }
                 return linesByPoint
-            }, {}));
-            let groupedLinesByPoint = Object.values(linesByPoint.reduce((groupedLinesByPoint, lineGroup) => {
-                if (lineGroup.length !== 2) return groupedLinesByPoint; //Point is not a vertex.
-                if (lineGroup[0].lineId !== lineGroup[1].lineId) return groupedLinesByPoint; //Two different lines.
-                lineGroup = quickSort(lineGroup);
-                if (lineGroup[0].lineId in groupedLinesByPoint) {
-                    groupedLinesByPoint[lineGroup[0].lineId].push(lineGroup);
+            }, {});
+            let linesByLineId = changeState(lines).reduce((linesByLineId, line) => {
+                if (line.lineId in linesByLineId) {
+                    linesByLineId[line.lineId].push(line);
                 } else {
-                    groupedLinesByPoint[lineGroup[0].lineId] = [lineGroup];
+                    linesByLineId[line.lineId] = [line];
                 }
+                return linesByLineId;
+            }, {});
+
+
+            let groupedLinesByPoint = Object.values(linesByLineId)
+            .map(lineGroup => quickSort(lineGroup)) //Order linegroups to ensure all things are happy for following steps.
+            .reduce((groupedLinesByPoint, lineGroup) => {
+                if (lineGroup.length === 1) return groupedLinesByPoint; //Remove any lineGroups that only have a singular line in them, they will not have veritices.
+                if (lineGroup.reduce((acc, line, i) => {
+                    if (linesByPoint[line.startNode].length > 2 || linesByPoint[line.endNode].length > 2) acc.push(line); //Check that all points except for first and last do not have more connections. If they do then this linegroup must be discarded.
+                    if (i !== lineGroup.length - 1) if (line.endNode !== lineGroup[i+1].startNode) acc.push(line); //Remove any linegroups that do not have continuous lines.
+                    return acc;
+                }, []).length !== 0) return groupedLinesByPoint; 
+                
+                groupedLinesByPoint.push(lineGroup);
                 return groupedLinesByPoint;
-            }, {})).map(lineGroup => {
-                let exIds = [];
-                return quickSort(lineGroup.flat()).filter(line => {
-                    if (exIds.includes(line.id)) return false;
-                    exIds.push(line.id);
-                    return true;
-                });
-            }).filter(lineGroup => {
-                let valid = verifyLineGroup(lineGroup);
-                //TODO: Do something if there are further extra lines.
-                return valid.valid;
-            }); //Group the lines by point.
-            // console.log(invalidLines)
+            }, []);
+            // console.log(groupedLinesByPoint)
+
+            // groupedLinesByPoint = Object.values(Object.values(linesByPoint).reduce((groupedLinesByPoint, lineGroup) => {
+            //     if (lineGroup.length !== 2) return groupedLinesByPoint; //Point is not a vertex.
+            //     if (lineGroup[0].lineId !== lineGroup[1].lineId) return groupedLinesByPoint; //Two different lines.
+            //     lineGroup = quickSort(lineGroup);
+            //     if (lineGroup[0].lineId in groupedLinesByPoint) {
+            //         groupedLinesByPoint[lineGroup[0].lineId].push(lineGroup);
+            //     } else {
+            //         groupedLinesByPoint[lineGroup[0].lineId] = [lineGroup];
+            //     }
+            //     return groupedLinesByPoint;
+            // }, {})).map(lineGroup => {
+            //     let exIds = [];
+            //     return quickSort(lineGroup.flat()).filter(line => {
+            //         if (exIds.includes(line.id)) return false;
+            //         exIds.push(line.id);
+            //         return true;
+            //     });
+            // }).filter(lineGroup => {
+            //     let valid = verifyLineGroup(lineGroup);
+            //     //TODO: Do something if there are further extra lines.
+            //     return valid.valid;
+            // }); //Group the lines by point.
+
             groupedLinesByPoint.forEach(lineGroup => {
                 lines[lineGroup[0].id].endNode = lineGroup[lineGroup.length-1].endNode; //Update endNode of line.
                 lines[lineGroup[0].id].length = round(lineGroup.reduce((a, b) => a + (b.length || 0), 0)); //Update length of line.
@@ -455,9 +479,15 @@ export default function(pipeNetworkArr, globalOptions) {
         }
         return output;
     }).then(result => {
+        if (simplifyVerticies) {
+            return get.verticies(result.lines, result.points);
+        }
+        return result
+    }).then(result => {
+        fs.writeFileSync('test.inp', get.saveFile(result.lines, result.points, result.verticies))
         return {
-            raw: (simplifyVerticies) ? get.verticies(result.lines, result.points) : result,
-            saveFile: get.saveFile(output.lines, output.points, output.verticies)
+            raw: result,
+            saveFile: get.saveFile(result.lines, result.points, result.verticies)
         }
     }).catch(err => {
         console.log(err);

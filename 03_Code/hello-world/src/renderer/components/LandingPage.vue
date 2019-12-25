@@ -40,6 +40,7 @@
 <script>
   import SystemInformation from './LandingPage/SystemInformation';
   import { net, dialog, ipcRenderer } from 'electron';
+import { verify } from 'crypto';
   let canvas, processedPipeNetwork, ctx, dpi;
   window.onload = function() {
     canvas = document.getElementById('outputCanvas');
@@ -75,11 +76,16 @@
   };
   function updateCanvasDisplay() {
     let { lines, points, verticies } = processedPipeNetwork.raw;
+    console.log({
+      verticies: verticies,
+      points: points,
+      lines: lines
+    })
     let minX = points[0].x;
     let minY = points[0].y;
     let maxX = 0;
     let maxY = 0;
-    (changeState(points).concat(changeState(verticies))).forEach(point => {
+    changeState(points).concat(changeState(verticies)).forEach(point => {
       if (point.x < minX) minX = point.x;
       if (point.x > maxX) maxX = point.x;
       if (point.y < minY) minY = point.y;
@@ -87,20 +93,20 @@
     });
     let scaleFactor = Math.min(((canvas.width * 0.9)/(maxX-minX)), ((canvas.height * 0.9)/(maxY-minY)));
     points = changeState(changeState(points).map(point => {
-      point.x = (point.x * scaleFactor - minX * scaleFactor) + canvas.width * 0.05;
-      point.y = (point.y * scaleFactor - minY * scaleFactor) + canvas.height * 0.05;
+      point.x = (point.x - minX) * scaleFactor + canvas.width * 0.05;
+      point.y = (point.y - minY) * scaleFactor + canvas.height * 0.05;
       return point;
     }));
     verticies = changeState(changeState(verticies).map(vertex => {
-      vertex.x = (vertex.x * scaleFactor - minX * scaleFactor) + canvas.width * 0.05;
-      vertex.y = (vertex.y * scaleFactor - minY * scaleFactor) + canvas.height * 0.05;
+      vertex.x = (vertex.x - minX) * scaleFactor + canvas.width * 0.05;
+      vertex.y = (vertex.y - minY) * scaleFactor + canvas.height * 0.05;
       return vertex;
     }));
     let verticiesByLineId = changeState(verticies).reduce((verticiesByLineId, vertex) => {
-      if (Object.keys(verticiesByLineId).includes(vertex)) {
+      if (vertex.lineId in verticiesByLineId) {
         verticiesByLineId[vertex.lineId].push(vertex);
       } else {
-        verticiesByLineId[vertex.lineId] = [vertex]
+        verticiesByLineId[vertex.lineId] = [vertex];
       }
       return verticiesByLineId;
     }, {});
@@ -108,14 +114,27 @@
       let path = [];
       path.push(points[line.startNode]);
       if (line.lineId in verticiesByLineId) {
-        verticiesByLineId[line.lineId].forEach(vertex => {
+        verticiesByLineId[line.lineId].sort((a, b) => {
+          if (a.x > b.x) return 1;
+          if (a.x < b.x) return -1;
+          return 0;
+        }).forEach(vertex => {
           vertex.vertex = true;
           path.push(vertex);
         });
       }
       path.push(points[line.endNode]);
+      if (points[line.endNode] === undefined) {
+        console.log({
+          path: path,
+          line: line,
+          points: points,
+          verticies: verticiesByLineId
+        })
+      }
       return path;
     });
+    // console.log(paths)
     fixDpi();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     paths.forEach(path => {
@@ -124,7 +143,6 @@
       ctx.moveTo(path[0].x, path[0].y);
       path.forEach((node, i) => {
         if (i === 0) return;
-        if (node === undefined) return;
         ctx.lineTo(node.x, node.y);
       })
       ctx.closePath();
@@ -170,7 +188,7 @@
         ],
         globalNetworkConfig : {
           checkGlobalCollisions: false,
-          simplifyVerticies: false
+          simplifyVerticies: true
         }
       }
     }
