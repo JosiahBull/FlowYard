@@ -1,36 +1,33 @@
 <template>
   <div id="wrapper">
-    <div id="networkConfigWindow">
+    <div id="networkConfigWindow" @mouseover="showPreview = true" @mouseleave="showPreview = false">
       <h1>Network Configuration</h1>
       <div id="networkConfigWrapper">
-        <div v-for="network in pipeNetworks" class="networkItem">
+        <div v-for="(network, i) in pipeNetworks" v-bind:class="{ 'exitHover': network.exitHover, 'networkError': !network.valid }" class="networkItem">
           <h2>Pipe Network: {{network.id}}</h2>
+          <div class="networkExit" @mouseup="pipeNetworks.splice(i, 1)" @mouseover="network.exitHover = true;" @mouseleave="network.exitHover = false;"></div>
           <div class="networkDivider"></div>
-          <h3>Shape File: <button v-on:click="browseFile().then(filePath => network.shapeFile = filePath)">Click to Select</button>{{network.shapeFile.replace(/^.*[\\\/]/, '')}}</h3>
-          <h3>Point File: <button v-on:click="browseFile().then(filePath => network.pointFile = filePath)">Click to Select</button>{{network.pointFile.replace(/^.*[\\\/]/, '')}}</h3>
+          <h3>Shape File: <button v-on:click="browseFile(network.shapeFile).then(filePath => network.shapeFile = filePath)">Click to Select</button>{{network.shapeFile.replace(/^.*[\\\/]/, '')}}</h3>
+          <h3>Point File: <button v-on:click="browseFile(network.pointFile).then(filePath => network.pointFile = filePath)">Click to Select</button>{{network.pointFile.replace(/^.*[\\\/]/, '')}}</h3>
           <div class="networkDivider"></div>
           <h4>Check Internal Intersections: <input type="checkbox" v-model="network.checkInternalIntersections"> </h4>
           <h4>Pipe Diameter: <input v-model="network.diameter" placeholder="click to enter (mm)"> </h4>
         </div>
-        <h4>Check Global Intersections: <input type="checkbox" v-model="globalNetworkConfig.checkGlobalCollisions"> </h4>
-        <h4>Simplify Verticies? <input type="checkbox" v-model="globalNetworkConfig.simplifyVerticies"> </h4>
+        <div id="newElementPreview" v-show="showPreview" @mousedown="add()">
+          <!-- Add preview stuff here. -->
+        </div>
       </div>
     </div>
-  
+
     <div id="outputPreviewWRapper">
       <h1>Output Preview</h1>
       <canvas id="outputCanvas"></canvas>
     </div>
 
-    <div id="outputInfoWrapper">
-      <div id="consoleOut">
-        <h2>Processed Network Information</h2>
-        
-      </div>
-      <div id="keyOut">
-        <h2>Key</h2>
-
-      </div>
+    <div id="globalOptions">
+      <h4>Check Global Intersections: <input type="checkbox" v-model="globalNetworkConfig.checkGlobalCollisions"> </h4>
+      <h4>Simplify Verticies? <input type="checkbox" v-model="globalNetworkConfig.simplifyVerticies"> </h4>
+      <h4>Remove Duplicates? <input type="checkbox" v-model="globalNetworkConfig.removeDuplicates"> </h4>
     </div>
     <button name="processNetworkButton" type="button" id="processButton" v-on:click="process()">Process!</button>
     <div id="footer"></div>
@@ -39,7 +36,8 @@
 
 <script>
   import SystemInformation from './LandingPage/SystemInformation';
-  import { net, dialog, ipcRenderer } from 'electron';
+  import { net, ipcRenderer, remote } from 'electron';
+  let dialog = remote.dialog;
   let canvas, processedPipeNetwork, ctx, dpi;
   window.onload = function() {
     canvas = document.getElementById('outputCanvas');
@@ -153,13 +151,26 @@
         //Add some verifciation code here to make sure everything is valid and happy before sending to the processor, also needs to highlight the offending boi red.
         ipcRenderer.send('processPipeNetworks', {pipeNetworks: this.$data.pipeNetworks, globalNetworkConfig: this.$data.globalNetworkConfig});
       },
-      browseFile() {
+      browseFile(currentValue) {
         return dialog.showOpenDialog().then(result => {
           let {cancled, filePaths} = result;
           if (!cancled) {
             return filePaths[0];
+          } else {
+            return currentValue;
           }
         })
+      },
+      add() {
+        this.$data.pipeNetworks.unshift(          {
+            id: 0,
+            shapeFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\shapey.shp',
+            pointFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\points.csv',
+            checkInternalIntersections: true,
+            diameter: 100,
+            valid: true,
+            exitHover: false
+          })
       }
     },
     data: function() {
@@ -171,13 +182,16 @@
             pointFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\points.csv',
             checkInternalIntersections: true,
             diameter: 100,
-            valid: true
+            valid: true,
+            exitHover: false
           }
         ],
         globalNetworkConfig : {
           checkGlobalCollisions: false,
-          simplifyVerticies: true
-        }
+          simplifyVerticies: true,
+          removeDuplicates: true
+        },
+        showPreview: false
       }
     }
   }
@@ -234,15 +248,33 @@
     width: 94%;
     height: 90%;
     background-color: darkblue;
+    overflow: auto;
   }
-  .networkItem {
+  .networkItem, #newElementPreview {
     width: 92%;
     position: relative;
     margin: 2% auto;
     background-color: aqua;
     border-style: solid;
     border-width: 4px;
-    border-color: black;
+    border-color: transparent;
+  }
+  #newElementPreview {
+    height: 100px;
+    cursor: pointer;
+    background-color: red;
+  }
+  .networkExit {
+    width: 30px;
+    height: 10px;
+    background-color: red;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    cursor: pointer;
+  }
+  .exitHover ,.networkError {
+    border-color: red;
   }
   .networkItem .networkDivider {
     height: 3px;
@@ -253,6 +285,7 @@
   .networkItem h2 {
     padding: 10px;
     margin: 0;
+    overflow: hidden;
   }
   .networkItem h3 {
     padding: 5px;
@@ -280,7 +313,7 @@
     background-color: lightblue;
   }
   /* Output Info Things */
-  #outputInfoWrapper {
+  #globalOptions {
     width: 25%;
     height: 20%;
     background-color: #5891ed;

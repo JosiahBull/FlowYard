@@ -297,7 +297,7 @@ let get = (function() {
                     points[line.endNode].lineId = lineGroup[0].id;
                     verticies[line.endNode] = points[line.endNode];
                     delete points[line.endNode];
-                    if (i === 0) return; //Don't delete teh first item Id, as it is the line we want to keep.
+                    if (i === 0) return; //Don't delete the first item Id, as it is the line we want to keep.
                     delete lines[line.id];
                 })
             }); //Figure out the new points.
@@ -413,7 +413,7 @@ let load = {
     }
 };
 export default function(pipeNetworkArr, globalOptions) {
-    let { simplifyVerticies, checkGlobalCollisions } = globalOptions;
+    let { simplifyVerticies, checkGlobalCollisions, removeDuplicates } = globalOptions;
     pipeId.reset();
     nodeId.reset();
     let output = {
@@ -447,12 +447,17 @@ export default function(pipeNetworkArr, globalOptions) {
             return result;
         })
     })).then(() => {
+        if (removeDuplicates) {
+            //TODO
+        }
+        return output;
+    }).then(result => {
         if (checkGlobalCollisions) {
-            return get.pointCollisions(output.lines, output.points).then(result => {
+            return get.pointCollisions(result.lines, result.points).then(result => {
                 return get.lineCollisions(result.lines, result.points)
             });
         }
-        return output;
+        return result;
     }).then(result => {
         if (simplifyVerticies) {
             return get.verticies(result.lines, result.points);
