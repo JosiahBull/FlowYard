@@ -40,7 +40,6 @@
 <script>
   import SystemInformation from './LandingPage/SystemInformation';
   import { net, dialog, ipcRenderer } from 'electron';
-import { verify } from 'crypto';
   let canvas, processedPipeNetwork, ctx, dpi;
   window.onload = function() {
     canvas = document.getElementById('outputCanvas');
@@ -113,39 +112,28 @@ import { verify } from 'crypto';
     let paths = changeState(lines).map(line => {
       let path = [];
       path.push(points[line.startNode]);
-      if (line.lineId in verticiesByLineId) {
-        verticiesByLineId[line.lineId].sort((a, b) => {
-          if (a.x > b.x) return 1;
-          if (a.x < b.x) return -1;
-          return 0;
-        }).forEach(vertex => {
+      if (line.id in verticiesByLineId) {
+        verticiesByLineId[line.id].forEach(vertex => {
           vertex.vertex = true;
           path.push(vertex);
         });
       }
       path.push(points[line.endNode]);
-      if (points[line.endNode] === undefined) {
-        console.log({
-          path: path,
-          line: line,
-          points: points,
-          verticies: verticiesByLineId
-        })
-      }
       return path;
     });
     // console.log(paths)
     fixDpi();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.translate(0, canvas.height);
+    ctx.scale(1, -1);
     paths.forEach(path => {
       ctx.beginPath();
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
       ctx.moveTo(path[0].x, path[0].y);
       path.forEach((node, i) => {
         if (i === 0) return;
         ctx.lineTo(node.x, node.y);
       })
-      ctx.closePath();
       ctx.stroke();
     })
   };
