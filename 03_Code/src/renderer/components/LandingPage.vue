@@ -1,6 +1,6 @@
 <template>
   <div id="wrapper">
-    <div id="networkConfigWindow" @mouseover="showPreview = true" @mouseleave="showPreview = false">
+    <div id="networkConfigWindow">
       <h1>Network Configuration</h1>
       <div id="networkConfigWrapper">
         <div v-for="(network, i) in pipeNetworks" v-bind:class="{ 'exitHover': network.exitHover, 'networkError': !network.valid }" class="networkItem">
@@ -13,7 +13,7 @@
           <h4>Check Internal Intersections: <input type="checkbox" v-model="network.checkInternalIntersections"> </h4>
           <h4>Pipe Diameter: <input v-model="network.diameter" placeholder="click to enter (mm)"> </h4>
         </div>
-        <div id="newElementPreview" v-show="showPreview" @mousedown="add()">
+        <div id="newElementPreview" @mousedown="add()">
           <!-- Add preview stuff here. -->
         </div>
       </div>
@@ -25,6 +25,7 @@
     </div>
 
     <div id="globalOptions">
+      <h1>Global Network Options</h1>
       <h4>Check Global Intersections: <input type="checkbox" v-model="globalNetworkConfig.checkGlobalCollisions"> </h4>
       <h4>Simplify Verticies? <input type="checkbox" v-model="globalNetworkConfig.simplifyVerticies"> </h4>
       <h4>Remove Duplicates? <input type="checkbox" v-model="globalNetworkConfig.removeDuplicates"> </h4>
