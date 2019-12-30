@@ -1,8 +1,8 @@
 <template>
   <div id="wrapper">
     <div id="networkConfigWindow">
-      <h1>Network Configuration</h1>
-      <div id="networkConfigWrapper">
+      <h1 class ="test">Network Configuration</h1>
+      <div class="test" id="networkConfigWrapper">
         <div v-for="(network, i) in pipeNetworks" v-bind:class="{ 'exitHover': network.exitHover, 'networkError': !network.valid }" class="networkItem">
           <h2>Pipe Network: {{network.id}}</h2>
           <div class="networkExit" @mouseup="pipeNetworks.splice(i, 1)" @mouseover="network.exitHover = true;" @mouseleave="network.exitHover = false;"></div>
@@ -17,19 +17,20 @@
           <!-- Add preview stuff here. -->
         </div>
       </div>
+      <div id="globalOptions" class="test">
+        <!-- <h1>Global Network Options</h1> -->
+        <h4>Global Intersections: <input type="checkbox" v-model="globalNetworkConfig.checkGlobalCollisions"> </h4>
+        <h4>Simplify Verticies: <input type="checkbox" v-model="globalNetworkConfig.simplifyVerticies"> </h4>
+        <!-- <h4>Remove Duplicates? <input type="checkbox" v-model="globalNetworkConfig.removeDuplicates"> </h4> -->
+      </div>
     </div>
 
-    <div id="outputPreviewWRapper">
+    <div id="previewWrapper">
       <h1>Output Preview</h1>
       <canvas id="outputCanvas"></canvas>
     </div>
 
-    <div id="globalOptions">
-      <h1>Global Network Options</h1>
-      <h4>Check Global Intersections: <input type="checkbox" v-model="globalNetworkConfig.checkGlobalCollisions"> </h4>
-      <h4>Simplify Verticies? <input type="checkbox" v-model="globalNetworkConfig.simplifyVerticies"> </h4>
-      <h4>Remove Duplicates? <input type="checkbox" v-model="globalNetworkConfig.removeDuplicates"> </h4>
-    </div>
+
     <button name="processNetworkButton" type="button" id="processButton" v-on:click="process()">Process!</button>
     <div id="footer"></div>
   </div>
@@ -170,7 +171,8 @@
             checkInternalIntersections: true,
             diameter: 100,
             valid: true,
-            exitHover: false
+            exitHover: false,
+            errors: []
           })
       }
     },
@@ -184,15 +186,15 @@
             checkInternalIntersections: true,
             diameter: 100,
             valid: true,
-            exitHover: false
+            exitHover: false,
+            errors: []
           }
         ],
         globalNetworkConfig : {
           checkGlobalCollisions: false,
           simplifyVerticies: true,
           removeDuplicates: true
-        },
-        showPreview: false
+        }
       }
     }
   }
@@ -212,15 +214,18 @@
   }
   /* Wrapper CSS */
   #wrapper {
-
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
   }
   /* Processing Button CSS */
   #processButton {
     height: 10%;
     width: 15%;
     position:absolute;
-    bottom: 5%;
-    right: 3%;
+    bottom: 10%;
+    right: 7%;
     border-radius: 7px;
     font-size: 25px;
   }
@@ -241,13 +246,14 @@
     position: absolute;
     top: 5%;
     left: 3%;
+    display: flex;
+    flex-direction: column;
   }
   #networkConfigWrapper {
-    position: absolute;
-    left: 3%;
-    top: 8%;
+    position: relative;
+    margin: 2% auto;
     width: 94%;
-    height: 90%;
+    height: 80%;
     background-color: darkblue;
     overflow: auto;
   }
@@ -296,10 +302,27 @@
     padding: 5px;
     margin: 0;
   }
+
+  /* Global Options Window */
+  #globalOptions {
+    background-color: #5891ed;
+    position: relative;
+    margin: 0 auto;
+    width: 94%;
+    overflow:auto;
+    flex: none;
+  }
+  #globalOptions > h4 {
+    display:inline-block;
+    font-size: 25px;
+    margin: 0;
+    padding: 0;
+  }
+
   /* Output Preview Things */
-  #outputPreviewWRapper {
-    width: 45%;
-    height: 65%;
+  #previewWrapper {
+    width: 55%;
+    height: 90%;
     background-color: #6acc8c;
     position: absolute;
     right: 3%;
@@ -313,26 +336,11 @@
     height: 86%;
     background-color: lightblue;
   }
-  /* Output Info Things */
-  #globalOptions {
-    width: 25%;
-    height: 20%;
-    background-color: #5891ed;
-    position:absolute;
-    bottom: 5%;
-    right: 23%;
-  }
-  #consoleOut {
-
-  }
-  #keyOut {
-
-  }
   /* Foooter */
   #footer {
     width: 100%;
     height: 25px;
-    position: absolute;
+    position: fixed;
     bottom:0;
     background-color: purple;
   }
