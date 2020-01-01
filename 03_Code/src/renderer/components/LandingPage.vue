@@ -3,9 +3,9 @@
     <div id="networkConfigWindow" class="wrapperStyling">
       <h1>Network Configuration</h1>
       <div id="networkConfigWrapper" class="elementContainerStyling">
-        <div v-for="(network, i) in pipeNetworks" v-bind:class="{ 'exitHover': network.exitHover, 'networkError': !network.valid }" class="networkItem">
+        <div v-for="(network, i) in pipeNetworks" v-bind:class="{ 'exitHover': network.exitHover, 'networkError': !network.valid, 'networkWarn' : (network.warn && network.valid) }" class="networkItem">
           <h2>Pipe Network: {{network.id}}</h2>
-          <div class="networkExit" @mouseup="pipeNetworks.splice(i, 1)" @mouseover="network.exitHover = true;" @mouseleave="network.exitHover = false;"></div>
+          <div class="networkExit" @mouseup="pipeNetworks.splice(i, 1); validate();" @mouseover="network.exitHover = true;" @mouseleave="network.exitHover = false;"></div>
           <div class="networkDivider"></div>
           <h3>Shape File: <button v-on:click="browseFile(network.shapeFile).then(filePath => network.shapeFile = filePath)">Click to Select</button>{{network.shapeFile.replace(/^.*[\\\/]/, '')}}</h3>
           <h3>Point File: <button v-on:click="browseFile(network.pointFile).then(filePath => network.pointFile = filePath)">Click to Select</button>{{network.pointFile.replace(/^.*[\\\/]/, '')}}</h3>
@@ -87,6 +87,7 @@
     return output;
   };
   function updateCanvasDisplay() {
+    if (processedPipeNetwork.raw === undefined) return;
     let { lines, points, verticies } = processedPipeNetwork.raw;
     let minX = points[0].x;
     let minY = points[0].y;
@@ -178,7 +179,7 @@
             checkInternalIntersections: true,
             diameter: undefined,
             valid: true,
-            warn: true,
+            warn: false,
             exitHover: false,
             errors: [],
             warnings: []
@@ -186,32 +187,44 @@
       },
       validate() {
         this.$data.valid = true;
-        this.$data.pipeNetworks = this.$data.pipeNetworks.map(pipeNetwork => {
+        this.$data.pipeNetworks = this.$data.pipeNetworks.map((pipeNetwork, i) => {
           let { shapeFile, pointFile, diameter } = pipeNetwork;
+          pipeNetwork.id = this.$data.pipeNetworks.length - 1 - i;
           pipeNetwork.valid = true;
           pipeNetwork.errors = [];
           pipeNetwork.warn = false;
           pipeNetwork.warnings = [];
-          if (shapeFile.replace(/^.*[\\\/]/, '').split('.')[1] !== 'shp' || pointFile.replace(/^.*[\\\/]/, '').split('.')[1] !== 'csv') {
+          if (shapeFile === '') {
+            pipeNetwork.valid = false;
+            this.$data.valid = false;
+            pipeNetwork.errors.push('Error: No shapefile selected!');
+          }
+          if ((shapeFile.replace(/^.*[\\\/]/, '').split('.')[1] !== 'shp' && shapeFile !== '') || (pointFile.replace(/^.*[\\\/]/, '').split('.')[1] !== 'csv') && pointFile !== '') {
             pipeNetwork.valid = false;
             this.$data.valid = false;
             pipeNetwork.errors.push('Error: Invalid filetype selected!');
           }
-          if (false) {
+          if (false) { //Check Paths Are Valid (IMPLEMENT IF THIS IS FOUND TO BE AN ISSUE)
             pipeNetwork.valid = false;
-            this.
+            this.$data.valid = false;
+            pipeNetwork.errors.push('Error: Invalid FilePath Selected!');
           }
-          if (false) { //Check diameter is numeric.
+          if (isNaN(diameter)) {
             pipeNetwork.valid = false;
             this.$data.valid = false;
             pipeNetwork.errors.push('Error: Pipe diameter must be numeric!');
           } 
           if (diameter > 5) {
             pipeNetwork.warn = true;
-            pipeNetwork.warnings.push('Warning! Pipe dia. is over 5m.')
+            pipeNetwork.warnings.push('Warning! Pipe dia. is over 5m.');
+          }
+          if (pointFile === '') {
+            pipeNetwork.warn = true;
+            pipeNetwork.warnings.push('Warning! No pointFile selected.');
           }
           return pipeNetwork;
         });
+        console.log(this.$data.pipeNetworks)
       },
     },
     data: function() {
@@ -224,7 +237,7 @@
             checkInternalIntersections: true,
             diameter: 5,
             valid: true,
-            warn: true,
+            warn: false,
             exitHover: false,
             errors: [],
             warnings: []
@@ -374,7 +387,7 @@
   #outputCanvas {
     position: relative;
     width: 95%;
-    height: 86%;
+    height: 90%;
     margin: 0 auto;
     display: block;
   }
@@ -416,6 +429,9 @@
   }
   .exitHover, .networkError {
     border-color: red;
+  }
+  .networkWarn {
+    border-color: rgb(199, 129, 0);
   }
   #processButton:hover {
     box-shadow: 6px 10px 22px -4px rgba(0,0,0,0.49);
