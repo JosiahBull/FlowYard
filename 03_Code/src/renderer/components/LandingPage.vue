@@ -1,8 +1,8 @@
 <template>
   <div id="wrapper">
-    <div id="networkConfigWindow">
-      <h1 class ="test">Network Configuration</h1>
-      <div class="test" id="networkConfigWrapper">
+    <div id="networkConfigWindow" class="wrapperStyling">
+      <h1>Network Configuration</h1>
+      <div id="networkConfigWrapper" class="elementContainerStyling">
         <div v-for="(network, i) in pipeNetworks" v-bind:class="{ 'exitHover': network.exitHover, 'networkError': !network.valid }" class="networkItem">
           <h2>Pipe Network: {{network.id}}</h2>
           <div class="networkExit" @mouseup="pipeNetworks.splice(i, 1)" @mouseover="network.exitHover = true;" @mouseleave="network.exitHover = false;"></div>
@@ -13,8 +13,14 @@
           <h4>Check Internal Intersections: <input type="checkbox" v-model="network.checkInternalIntersections"> </h4>
           <h4>Pipe Diameter: <input v-model="network.diameter" placeholder="click to enter (mm)"> </h4>
         </div>
-        <div id="newElementPreview" @mousedown="add()">
-          <!-- Add preview stuff here. -->
+        <div id="newItemPreview" @mousedown="add()">
+          <h2>Add New</h2>
+          <div class="networkDivider"></div>
+          <div class="newItemBlock"></div>
+          <div class="newItemBlock"></div>
+          <div class="networkDivider"></div>
+          <div class="newItemBlock"></div>
+          <div class="newItemBlock"></div>
         </div>
       </div>
       <div id="globalOptions" class="test">
@@ -25,9 +31,9 @@
       </div>
     </div>
 
-    <div id="previewWrapper">
+    <div id="previewWrapper" class="wrapperStyling">
       <h1>Output Preview</h1>
-      <canvas id="outputCanvas"></canvas>
+      <canvas id="outputCanvas" class="elementContainerStyling"></canvas>
     </div>
 
 
@@ -39,6 +45,9 @@
 <script>
   import SystemInformation from './LandingPage/SystemInformation';
   import { net, ipcRenderer, remote } from 'electron';
+  import 'typeface-karla/index.css';
+  import 'typeface-domine/index.css';
+  import 'typeface-open-sans/index.css';
   let dialog = remote.dialog;
   let canvas, processedPipeNetwork, ctx, dpi;
   window.onload = function() {
@@ -47,6 +56,10 @@
     dpi = window.devicePixelRatio;
     fixDpi();
   };
+  window.onresize = function() {
+    fixDpi();
+    updateCanvasDisplay();
+  }
   function fixDpi() {
     let style_height = +getComputedStyle(canvas).getPropertyValue("height").slice(0, -2);
     let style_width = +getComputedStyle(canvas).getPropertyValue("width").slice(0, -2);
@@ -75,11 +88,6 @@
   };
   function updateCanvasDisplay() {
     let { lines, points, verticies } = processedPipeNetwork.raw;
-    console.log({
-      verticies: verticies,
-      points: points,
-      lines: lines
-    })
     let minX = points[0].x;
     let minY = points[0].y;
     let maxX = 0;
@@ -100,7 +108,7 @@
       vertex.x = (vertex.x - minX) * scaleFactor + canvas.width * 0.05;
       vertex.y = (vertex.y - minY) * scaleFactor + canvas.height * 0.05;
       return vertex;
-    }));
+    }));  
     let verticiesByLineId = changeState(verticies).reduce((verticiesByLineId, vertex) => {
       if (vertex.lineId in verticiesByLineId) {
         verticiesByLineId[vertex.lineId].push(vertex);
@@ -121,11 +129,8 @@
       path.push(points[line.endNode]);
       return path;
     });
-    // console.log(paths)
     fixDpi();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.translate(0, canvas.height);
-    ctx.scale(1, -1);
     paths.forEach(path => {
       ctx.beginPath();
       ctx.lineWidth = 3;
@@ -137,7 +142,6 @@
       ctx.stroke();
     })
   };
-
   ipcRenderer.on('pipeNetworksProcessed', (event, args) => {
     processedPipeNetwork = args;
     updateCanvasDisplay();
@@ -150,8 +154,11 @@
         this.$electron.shell.openExternal(link)
       },
       process() {
-        //Add some verifciation code here to make sure everything is valid and happy before sending to the processor, also needs to highlight the offending boi red.
-        ipcRenderer.send('processPipeNetworks', {pipeNetworks: this.$data.pipeNetworks, globalNetworkConfig: this.$data.globalNetworkConfig});
+        this.validate();
+        if (this.$data.valid) {
+          ipcRenderer.send('processPipeNetworks', {pipeNetworks: this.$data.pipeNetworks, globalNetworkConfig: this.$data.globalNetworkConfig});
+        } 
+        //Consider adding an else here to display an error to the user.
       },
       browseFile(currentValue) {
         return dialog.showOpenDialog().then(result => {
@@ -164,17 +171,48 @@
         })
       },
       add() {
-        this.$data.pipeNetworks.unshift(          {
-            id: 0,
-            shapeFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\shapey.shp',
-            pointFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\points.csv',
+        this.$data.pipeNetworks.unshift({
+            id: (this.$data.pipeNetworks.length === 0) ? 0 : Number(this.$data.pipeNetworks[0].id +1),
+            shapeFile: '',
+            pointFile: '',
             checkInternalIntersections: true,
-            diameter: 100,
+            diameter: undefined,
             valid: true,
+            warn: true,
             exitHover: false,
-            errors: []
+            errors: [],
+            warnings: []
           })
-      }
+      },
+      validate() {
+        this.$data.valid = true;
+        this.$data.pipeNetworks = this.$data.pipeNetworks.map(pipeNetwork => {
+          let { shapeFile, pointFile, diameter } = pipeNetwork;
+          pipeNetwork.valid = true;
+          pipeNetwork.errors = [];
+          pipeNetwork.warn = false;
+          pipeNetwork.warnings = [];
+          if (shapeFile.replace(/^.*[\\\/]/, '').split('.')[1] !== 'shp' || pointFile.replace(/^.*[\\\/]/, '').split('.')[1] !== 'csv') {
+            pipeNetwork.valid = false;
+            this.$data.valid = false;
+            pipeNetwork.errors.push('Error: Invalid filetype selected!');
+          }
+          if (false) {
+            pipeNetwork.valid = false;
+            this.
+          }
+          if (false) { //Check diameter is numeric.
+            pipeNetwork.valid = false;
+            this.$data.valid = false;
+            pipeNetwork.errors.push('Error: Pipe diameter must be numeric!');
+          } 
+          if (diameter > 5) {
+            pipeNetwork.warn = true;
+            pipeNetwork.warnings.push('Warning! Pipe dia. is over 5m.')
+          }
+          return pipeNetwork;
+        });
+      },
     },
     data: function() {
       return {
@@ -184,17 +222,20 @@
             shapeFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\shapey.shp',
             pointFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\points.csv',
             checkInternalIntersections: true,
-            diameter: 100,
+            diameter: 5,
             valid: true,
+            warn: true,
             exitHover: false,
-            errors: []
+            errors: [],
+            warnings: []
           }
         ],
         globalNetworkConfig : {
           checkGlobalCollisions: false,
           simplifyVerticies: true,
           removeDuplicates: true
-        }
+        },
+        allValid : true
       }
     }
   }
@@ -202,15 +243,19 @@
 
 <style>
   body {
-    background-color: #33322d;
+    background-color: rgb(30, 30, 30);
     margin: 0;
   }
-  input, button, textarea, :focus {
+  input, button, textarea, :focus {   
     outline: none;
   }
   h1 {
-    margin: 20px;
-    color: brown;
+    margin: 7px;
+    margin-left: 15px;
+    font-weight: bold;
+    font-size: 37px;
+    color: rgb(228, 228, 228);
+    font-family: 'Open Sans', sans-serif;
   }
   /* Wrapper CSS */
   #wrapper {
@@ -229,20 +274,10 @@
     border-radius: 7px;
     font-size: 25px;
   }
-  #processButton:hover {
-    box-shadow: 6px 10px 22px -4px rgba(0,0,0,0.49);
-    background-color: green;
-    border-color: red;
-  }
-  #processButton:active {
-    background-color: blue;
-    border-color: yellow;
-  }
   /* Network Config Window Things */
   #networkConfigWindow {
     width: 35%;
     height: 90%;
-    background-color: #6acc8c;
     position: absolute;
     top: 5%;
     left: 3%;
@@ -251,25 +286,18 @@
   }
   #networkConfigWrapper {
     position: relative;
-    margin: 2% auto;
+    margin: 0% auto;
     width: 94%;
     height: 80%;
-    background-color: darkblue;
     overflow: auto;
   }
-  .networkItem, #newElementPreview {
+  .networkItem, #newItemPreview {
     width: 92%;
     position: relative;
     margin: 2% auto;
-    background-color: aqua;
     border-style: solid;
     border-width: 4px;
     border-color: transparent;
-  }
-  #newElementPreview {
-    height: 100px;
-    cursor: pointer;
-    background-color: red;
   }
   .networkExit {
     width: 30px;
@@ -280,34 +308,50 @@
     right: 10px;
     cursor: pointer;
   }
-  .exitHover ,.networkError {
-    border-color: red;
-  }
-  .networkItem .networkDivider {
+  .networkDivider {
     height: 3px;
     width: 100%;
     position: relative;
-    background-color: darkgray;
   }
-  .networkItem h2 {
-    padding: 10px;
+  .networkItem > h2, #newItemPreview > h2 {
+    padding: 5px;
+    font-weight: 700;
     margin: 0;
     overflow: hidden;
+    font-family: 'Open Sans', sans-serif;
+    font-size: 25px;
   }
-  .networkItem h3 {
+  .networkItem > h3 {
     padding: 5px;
     margin: 0;
+    font-weight: 600;
+    font-family: 'Open Sans', sans-serif;
+    font-size: 15px;
   }
-  .networkItem h4 {
+  .networkItem > h4 {
     padding: 5px;
     margin: 0;
+    font-family: 'Open Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
   }
-
+  .networkItem > h3 > button {
+    padding: 40px, 0, 0, 40px;
+  }
+  .networkItem > h4 > input {
+    width: 10%;
+    margin-left: 10px;
+  }
+  /* New Item CSS */
+  #newItemPreview {
+    height: 182px;
+    cursor: pointer;
+  }
   /* Global Options Window */
   #globalOptions {
     background-color: #5891ed;
     position: relative;
-    margin: 0 auto;
+    margin: 2% auto;
     width: 94%;
     overflow:auto;
     flex: none;
@@ -323,25 +367,86 @@
   #previewWrapper {
     width: 55%;
     height: 90%;
-    background-color: #6acc8c;
     position: absolute;
-    right: 3%;
+    right: 2%;
     top: 5%;
   }
   #outputCanvas {
-    position: absolute;
-    left: 3%;
-    top: 11%;
-    width: 94%;
+    position: relative;
+    width: 95%;
     height: 86%;
-    background-color: lightblue;
+    margin: 0 auto;
+    display: block;
   }
+
   /* Foooter */
   #footer {
     width: 100%;
     height: 25px;
     position: fixed;
     bottom:0;
-    background-color: purple;
+    background-color: rgb(68, 14, 73);
+    box-shadow: 0px 0px 5px 0px rgba(0,0,0,0.66);
   }
+
+  /* Colors and things for styling */
+  .elementContainerStyling {
+    border-radius: 5px;
+    box-shadow: inset 0px 0px 10px 2px rgba(0,0,0,0.7);
+    background-color: rgb(240, 240, 240);
+  }
+  .wrapperStyling {
+    border-radius: 5px;
+    background-color: rgb(60, 60, 60);
+    box-shadow: 0px 0px 10px 1px rgba(0,0,0,0.75);
+  }
+  .networkItem, #newItemPreview{
+    background-color: aqua;
+    border-radius: 5px;
+  }
+  .networkDivider {
+    background-color: darkgray;
+  }
+  .newItemBlock {
+    height: 20px;
+    margin: 7px;
+    width: 75%;
+    background-color: grey;
+    border-radius: 5px;
+  }
+  .exitHover, .networkError {
+    border-color: red;
+  }
+  #processButton:hover {
+    box-shadow: 6px 10px 22px -4px rgba(0,0,0,0.49);
+    background-color: green;
+    border-color: red;
+  }
+  #processButton:active {
+    background-color: blue;
+    border-color: yellow;
+  }
+
+  /* Media Queries (TODO)*/
+  
+  /* @media (max-width: 1000px) {
+
+    #networkConfigWrapper {
+      transform-origin: right top;
+      transform:rotate(-90deg) translateY(-100px);
+      padding-top: 400px;
+    }
+    .networkItem {
+      transform: rotate(90deg);
+      transform-origin: right top;
+      padding: 0;
+    }
+    #previewWrapper {
+      visibility: hidden;
+    }
+    #footer {
+      background-color: green;
+    }
+  } */
+
 </style>
