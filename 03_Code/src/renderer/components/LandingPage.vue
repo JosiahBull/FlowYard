@@ -3,15 +3,20 @@
     <div id="networkConfigWindow" class="wrapperStyling">
       <h1>Network Configuration</h1>
       <div id="networkConfigWrapper" class="elementContainerStyling">
-        <div v-for="(network, i) in pipeNetworks" v-bind:class="{ 'exitHover': network.exitHover, 'networkError': !network.valid, 'networkWarn' : (network.warn && network.valid) }" class="networkItem">
-          <h2>Pipe Network: {{network.id}}</h2>
-          <div class="networkExit" @mouseup="pipeNetworks.splice(i, 1); validate();" @mouseover="network.exitHover = true;" @mouseleave="network.exitHover = false;"></div>
-          <div class="networkDivider"></div>
-          <h3>Shape File: <button v-on:click="browseFile(network.shapeFile).then(filePath => network.shapeFile = filePath)">Click to Select</button>{{network.shapeFile.replace(/^.*[\\\/]/, '')}}</h3>
-          <h3>Point File: <button v-on:click="browseFile(network.pointFile).then(filePath => network.pointFile = filePath)">Click to Select</button>{{network.pointFile.replace(/^.*[\\\/]/, '')}}</h3>
-          <div class="networkDivider"></div>
-          <h4>Check Internal Intersections: <input type="checkbox" v-model="network.checkInternalIntersections"> </h4>
-          <h4>Pipe Diameter: <input v-model="network.diameter" placeholder="click to enter (mm)"> </h4>
+        <div v-for="(network, i) in pipeNetworks">
+          <div v-bind:class="{ 'errorDropdownActiveNetwork': !network.valid, 'exitHover': network.exitHover, 'networkError': !network.valid, 'networkWarn' : (network.warn && network.valid) }" class="networkItem">  
+            <h2>Pipe Network: {{network.id}}</h2>
+            <div class="networkExit" @mouseup="pipeNetworks.splice(i, 1); validate();" @mouseover="network.exitHover = true;" @mouseleave="network.exitHover = false;"></div>
+            <div class="networkDivider"></div>
+            <h3>Shape File: <button v-on:click="browseFile(network.shapeFile).then(filePath => network.shapeFile = filePath)">Click to Select</button>{{network.shapeFile.replace(/^.*[\\\/]/, '')}}</h3>
+            <h3>Point File: <button v-on:click="browseFile(network.pointFile).then(filePath => network.pointFile = filePath)">Click to Select</button>{{network.pointFile.replace(/^.*[\\\/]/, '')}}</h3>
+            <div class="networkDivider"></div>
+            <h4>Check Internal Intersections: <input type="checkbox" v-model="network.checkInternalIntersections"> </h4>
+            <h4>Pipe Diameter: <input v-model="network.diameter" placeholder="click to enter (mm)"> </h4>
+            <div class="errorDropdown" v-bind:class="{'errorDropdownActive': !network.valid}">
+              <h5>{{network.errors[0]}}</h5>
+            </div>
+          </div>
         </div>
         <div id="newItemPreview" @mousedown="add()">
           <h2>Add New</h2>
@@ -224,7 +229,6 @@
           }
           return pipeNetwork;
         });
-        console.log(this.$data.pipeNetworks)
       },
     },
     data: function() {
@@ -248,7 +252,7 @@
           simplifyVerticies: true,
           removeDuplicates: true
         },
-        allValid : true
+        valid : false
       }
     }
   }
@@ -305,12 +309,14 @@
     overflow: auto;
   }
   .networkItem, #newItemPreview {
-    width: 92%;
     position: relative;
+    width: 92%;
+    z-index: 1; 
     margin: 2% auto;
     border-style: solid;
     border-width: 4px;
     border-color: transparent;
+    transition: margin-bottom 1s;
   }
   .networkExit {
     width: 30px;
@@ -355,6 +361,27 @@
     width: 10%;
     margin-left: 10px;
   }
+  .errorDropdown {
+    position: absolute;
+    z-index: 0;
+    background-color: darkred;
+    left: 0%;
+    width: 100%;
+    top: 80%;
+    transition: top 1s;
+    margin-bottom: 0;
+    border-radius: 7px;
+  }
+  .errorDropdown > h5 {
+    margin: 10px;
+  }
+  .errorDropdownActive {
+    top: 105%;
+    background-color: green;
+  }
+  .errorDropdownActiveNetwork {
+    margin-bottom: 50px;
+  }
   /* New Item CSS */
   #newItemPreview {
     height: 182px;
@@ -375,7 +402,6 @@
     margin: 0;
     padding: 0;
   }
-
   /* Output Preview Things */
   #previewWrapper {
     width: 55%;
