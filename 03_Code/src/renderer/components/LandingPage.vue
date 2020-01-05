@@ -146,12 +146,17 @@
       })
     });
     ctx.stroke();
-
+    ctx.fillStyle = 'Red';
     changeState(points).forEach(point => {
       ctx.beginPath();
-      // ctx.moveTo(point.x, point.y)
-      ctx.arc(point.x, point.y, 5, 0, 2*Math.PI)
-      ctx.stroke();
+      ctx.arc(point.x, point.y, 3, 0, 2*Math.PI)
+      ctx.fill();
+    });
+    let rectSize = 7;
+    ctx.fillStyle = 'Green';
+    changeState(verticies).forEach(vertex => {
+      ctx.beginPath();
+      ctx.fillRect(vertex.x - rectSize/2, vertex.y - rectSize/2, rectSize, rectSize);
     });
     
   };
@@ -398,7 +403,7 @@
     font-family: 'Open Sans', sans-serif;
   }
   .errorDropdownActive {
-    top: 0px;
+    top: 2px;
     height: 40px;
     font-size: 25px;
   }
