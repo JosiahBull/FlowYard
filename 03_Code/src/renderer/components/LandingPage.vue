@@ -135,18 +135,25 @@
       path.push(points[line.endNode]);
       return path;
     });
-    fixDpi();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.lineWidth = 3;
+    ctx.beginPath();
     paths.forEach(path => {
-      ctx.beginPath();
-      ctx.lineWidth = 3;
       ctx.moveTo(path[0].x, path[0].y);
       path.forEach((node, i) => {
         if (i === 0) return;
         ctx.lineTo(node.x, node.y);
       })
+    });
+    ctx.stroke();
+
+    changeState(points).forEach(point => {
+      ctx.beginPath();
+      // ctx.moveTo(point.x, point.y)
+      ctx.arc(point.x, point.y, 5, 0, 2*Math.PI)
       ctx.stroke();
-    })
+    });
+    
   };
   ipcRenderer.on('pipeNetworksProcessed', (event, args) => {
     processedPipeNetwork = args;
