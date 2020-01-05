@@ -70,7 +70,7 @@
     let style_width = +getComputedStyle(canvas).getPropertyValue("width").slice(0, -2);
     canvas.setAttribute('height', style_height * dpi);
     canvas.setAttribute('width', style_width * dpi);
-  }
+  };
   function changeState(input) {
     let output;
     if (Array.isArray(input)) {
@@ -153,7 +153,7 @@
       ctx.fill();
     });
     let rectSize = 7;
-    ctx.fillStyle = 'Green';
+    ctx.fillStyle = 'Blue';
     changeState(verticies).forEach(vertex => {
       ctx.beginPath();
       ctx.fillRect(vertex.x - rectSize/2, vertex.y - rectSize/2, rectSize, rectSize);
@@ -350,7 +350,9 @@
   }
   .networkDivider {
     height: 3px;
-    width: 100%;
+    width: 95%;
+    /* margin: 0 auto; */
+    left: 5px;
     position: relative;
   }
   .networkItem > h2, #newItemPreview > h2 {
@@ -460,7 +462,7 @@
   .elementContainerStyling {
     border-radius: 5px;
     box-shadow: inset 0px 0px 10px 2px rgba(0,0,0,0.7);
-    background-color: rgb(240, 240, 240);
+    background-color: rgb(168, 168, 168);
   }
   .wrapperStyling {
     border-radius: 5px;
@@ -468,11 +470,11 @@
     box-shadow: 0px 0px 10px 1px rgba(0,0,0,0.75);
   }
   .networkItem, #newItemPreview{
-    background-color: aqua;
+    background-color: rgb(241, 241, 241);
     border-radius: 5px;
   }
   .networkDivider {
-    background-color: darkgray;
+    background-color: rgb(94, 2, 87);
   }
   .newItemBlock {
     height: 20px;

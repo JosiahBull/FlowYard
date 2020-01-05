@@ -249,7 +249,6 @@ let get = (function() {
                 }
             };
             let verticies = {};
-            // let invalidLines = [];
             let linesByPoint = changeState(lines).reduce((linesByPoint, line) => {
                 if (line.startNode in linesByPoint) {
                     linesByPoint[line.startNode].push(line);
@@ -274,17 +273,20 @@ let get = (function() {
 
             let groupedLinesByPoint = Object.values(linesByLineId)
             .map(lineGroup => quickSort(lineGroup)) //Order linegroups to ensure all things are happy for following steps.
-            .reduce((groupedLinesByPoint, lineGroup) => {
-                if (lineGroup.length === 1) return groupedLinesByPoint; //Remove any lineGroups that only have a singular line in them, they will not have veritices.
-                if (lineGroup.reduce((acc, line, i) => {
-                    if (linesByPoint[line.startNode].length > 2 || linesByPoint[line.endNode].length > 2) acc.push(line); //Check that all points except for first and last do not have more connections. If they do then this linegroup must be discarded.
-                    if (i !== lineGroup.length - 1) if (line.endNode !== lineGroup[i+1].startNode) acc.push(line); //Remove any linegroups that do not have continuous lines. TODO: utilise the verify linegroup function or whatever to do this instead and do somethign usefl.
-                    return acc;
-                }, []).length !== 0) return groupedLinesByPoint; 
+            .filter(lineGroup => {
+                if (lineGroup.length === 1) return false; //Remove any lineGroups that only have a singular line in them, they will not have veritices.
+                if (lineGroup.filter((line, i) => (linesByPoint[line.startNode].length > 2 && i !== 0) || (linesByPoint[line.endNode].length > 2) && i !== lineGroup.length-1).length !== 0) return false;//Check that all points except for first and last do not have more connections. If they do then this linegroup must be discarded.
+                return true;
+            }).reduce((acc, lineGroup) => {
+                let boi = verifyLineGroup(lineGroup);
+                // if (!boi.valid) {
+                    // console.log(boi)
+                // }
 
-                groupedLinesByPoint.push(lineGroup);
-                return groupedLinesByPoint;
+                acc.push(lineGroup)
+                return acc;
             }, []);
+
             
             groupedLinesByPoint.forEach(lineGroup => {
                 lines[lineGroup[0].id].endNode = lineGroup[lineGroup.length-1].endNode; //Update endNode of line.
