@@ -6,7 +6,7 @@
         <div v-for="(network, i) in pipeNetworks">
           <div v-bind:class="{ 'errorDropdownActiveNetwork': !network.valid, 'exitHover': network.exitHover, 'networkError': !network.valid, 'networkWarn' : (network.warn && network.valid) }" class="networkItem">  
             <h2>Pipe Network: {{network.id}}</h2>
-            <div class="networkExit" @mouseup="pipeNetworks.splice(i, 1); validate();" @mouseover="network.exitHover = true;" @mouseleave="network.exitHover = false;"></div>
+            <div class="networkExit" @mouseup="pipeNetworks.splice(i, 1);" @mouseover="network.exitHover = true;" @mouseleave="network.exitHover = false;"></div>
             <div class="networkDivider"></div>
             <h3>Shape File: <button v-on:click="browseFile(network.shapeFile).then(filePath => network.shapeFile = filePath)">Click to Select</button>{{network.shapeFile.replace(/^.*[\\\/]/, '')}}</h3>
             <h3>Point File: <button v-on:click="browseFile(network.pointFile).then(filePath => network.pointFile = filePath)">Click to Select</button>{{network.pointFile.replace(/^.*[\\\/]/, '')}}</h3>
@@ -64,7 +64,7 @@
   window.onresize = function() {
     fixDpi();
     updateCanvasDisplay();
-  }
+  };
   function fixDpi() {
     let style_height = +getComputedStyle(canvas).getPropertyValue("height").slice(0, -2);
     let style_width = +getComputedStyle(canvas).getPropertyValue("width").slice(0, -2);
@@ -188,7 +188,7 @@
             exitHover: false,
             errors: [],
             warnings: []
-          })
+        })
       },
       validate() {
         this.$data.valid = true;
@@ -254,7 +254,15 @@
         },
         valid : false
       }
-    }
+    },
+    // watch: {
+    //   pipeNetworks: {
+    //     handler(newVal, oldVal) {
+    //       console.log('boiboiboiboib')
+    //     }, 
+    //     deep: true
+    //   }
+    // }
   }
 </script>
 
@@ -270,9 +278,10 @@
     margin: 7px;
     margin-left: 15px;
     font-weight: bold;
-    font-size: 37px;
+    font-size: 3.5vh;
     color: rgb(228, 228, 228);
     font-family: 'Open Sans', sans-serif;
+    white-space: nowrap;
   }
   /* Wrapper CSS */
   #wrapper {
@@ -477,7 +486,21 @@
   }
 
   /* Media Queries (TODO)*/
-  
+
+    @media screen and (min-height: 840px) {
+      h1 {
+        font-size: 30px;
+      }
+      .networkItem > h2, #newItemPreview > h2 {
+        font-size: 25px;
+      }
+      .networkItem > h3 {
+        font-size: 15px;
+      }
+      .networkItem > h4 {
+        font-size: 13px;
+      }
+    }
   /* @media (max-width: 1000px) {
 
     #networkConfigWrapper {

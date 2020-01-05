@@ -7,7 +7,7 @@
 <script>
   let tests = ['item1', 'item2'];
   export default {
-    name: 'hello-world'
+    name: 'FlowYard'
   }
 </script>
 

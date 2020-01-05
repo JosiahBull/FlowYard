@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, IpcMain, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, IpcMain, ipcMain, Menu } from 'electron';
 import { EventEmitter } from 'events';
 const networkProcessor = require('./processor.js').default;
 /**
@@ -24,6 +24,7 @@ function createWindow () {
     height: 600,
     minWidth: 1050,
     minHeight: 500,
+    title: 'FlowYard',
     webPreferences: {
       nodeIntegration: true,
       nodeIntegrationInWorker: true
@@ -36,6 +37,7 @@ function createWindow () {
   })
 }
 
+Menu.setApplicationMenu(null);
 app.on('ready', createWindow)
 
 app.on('window-all-closed', () => {
