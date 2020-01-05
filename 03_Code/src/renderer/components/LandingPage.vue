@@ -13,9 +13,9 @@
             <div class="networkDivider"></div>
             <h4>Check Internal Intersections: <input type="checkbox" v-model="network.checkInternalIntersections"> </h4>
             <h4>Pipe Diameter: <input v-model="network.diameter" placeholder="click to enter (mm)"> </h4>
-            <div class="errorDropdown" v-bind:class="{'errorDropdownActive': !network.valid}">
-              <h5>{{network.errors[0]}}</h5>
-            </div>
+          </div>
+          <div class="errorDropdown" v-bind:class="{'errorDropdownActive': !network.valid}">
+            <h5>{{network.errors[0]}}</h5>
           </div>
         </div>
         <div id="newItemPreview" @mousedown="add()">
@@ -362,25 +362,32 @@
     margin-left: 10px;
   }
   .errorDropdown {
-    position: absolute;
+    position: relative;
     z-index: 0;
     background-color: darkred;
-    left: 0%;
-    width: 100%;
-    top: 80%;
-    transition: top 1s;
-    margin-bottom: 0;
+    height: 0px;
+    font-size: 0px;
+    margin: 0 auto;
+    width: 92%;
+    /* top: 80%; */
+    top: -60px;
+    transition: top 1s, height 1s, font-size 1s;
     border-radius: 7px;
   }
   .errorDropdown > h5 {
-    margin: 10px;
+    position: relative;
+    top: 5px;
+    left: 10px;
+    margin: 0;
+    font-family: 'Open Sans', sans-serif;
   }
   .errorDropdownActive {
-    top: 105%;
-    background-color: green;
+    top: 0px;
+    height: 40px;
+    font-size: 25px;
   }
   .errorDropdownActiveNetwork {
-    margin-bottom: 50px;
+    margin-bottom: 0px;
   }
   /* New Item CSS */
   #newItemPreview {
