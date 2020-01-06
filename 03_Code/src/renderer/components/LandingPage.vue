@@ -11,14 +11,14 @@
             <h3>Shape File: <button v-on:click="browseFile(network.shapeFile).then(filePath => network.shapeFile = filePath)">Click to Select</button>{{network.shapeFile.replace(/^.*[\\\/]/, '')}}</h3>
             <h3>Point File: <button v-on:click="browseFile(network.pointFile).then(filePath => network.pointFile = filePath)">Click to Select</button>{{network.pointFile.replace(/^.*[\\\/]/, '')}}</h3>
             <div class="networkDivider"></div>
-            <h4>Check Internal Intersections: <input type="checkbox" v-model="network.checkInternalIntersections"> </h4>
-            <h4>Pipe Diameter: <input v-model="network.diameter" placeholder="click to enter (mm)"> </h4>
+            <h3>Check Internal Intersections: <input type="checkbox" v-model="network.checkInternalIntersections"> </h3>
+            <h3>Pipe Diameter: <input v-model="network.diameter" placeholder="click to enter (mm)"> </h3>
           </div>
           <div class="errorDropdown" v-bind:class="{'errorDropdownActive': !network.valid}">
             <h5>{{network.errors[0]}}</h5>
           </div>
         </div>
-        <div id="newItemPreview" @mousedown="add()">
+        <!-- <div id="newItemPreview" @mousedown="add()">
           <h2>Add New</h2>
           <div class="networkDivider"></div>
           <div class="newItemBlock"></div>
@@ -26,7 +26,7 @@
           <div class="networkDivider"></div>
           <div class="newItemBlock"></div>
           <div class="newItemBlock"></div>
-        </div>
+        </div> -->
       </div>
       <div id="globalOptions" class="test">
         <!-- <h1>Global Network Options</h1> -->
@@ -280,7 +280,7 @@
 
 <style>
   body {
-    background-color: rgb(30, 30, 30);
+    background-color: rgb(40, 40, 40);
     margin: 0;
   }
   input, button, textarea, :focus {   
@@ -291,7 +291,7 @@
     margin-left: 15px;
     font-weight: bold;
     font-size: 3.5vh;
-    color: rgb(228, 228, 228);
+    color: rgb(0, 0, 0);
     font-family: 'Open Sans', sans-serif;
     white-space: nowrap;
   }
@@ -307,7 +307,7 @@
     height: 10%;
     width: 15%;
     position:absolute;
-    bottom: 10%;
+    bottom: 5%;
     right: 7%;
     border-radius: 7px;
     font-size: 25px;
@@ -419,7 +419,7 @@
   }
   /* Global Options Window */
   #globalOptions {
-    background-color: #5891ed;
+    /* background-color: #5891ed; */
     position: relative;
     margin: 2% auto;
     width: 94%;
@@ -435,7 +435,7 @@
   /* Output Preview Things */
   #previewWrapper {
     width: 55%;
-    height: 90%;
+    height: 75%;
     position: absolute;
     right: 2%;
     top: 5%;
@@ -455,22 +455,22 @@
     position: fixed;
     bottom:0;
     background-color: rgb(68, 14, 73);
-    box-shadow: 0px 0px 5px 0px rgba(0,0,0,0.66);
+    /* box-shadow: 0px 0px 5px 0px rgba(0,0,0,0.66); */
   }
 
   /* Colors and things for styling */
   .elementContainerStyling {
     border-radius: 5px;
-    box-shadow: inset 0px 0px 10px 2px rgba(0,0,0,0.7);
-    background-color: rgb(168, 168, 168);
+    /* box-shadow: inset 0px 0px 10px 2px rgba(0,0,0,0.7); */
+    /* background-color: rgb(168, 168, 168); */
   }
   .wrapperStyling {
     border-radius: 5px;
-    background-color: rgb(60, 60, 60);
-    box-shadow: 0px 0px 10px 1px rgba(0,0,0,0.75);
+    background-color: rgb(255, 255, 255);
+    box-shadow: 0px 0px 10px 2px rgba(0,0,0,0.75);
   }
   .networkItem, #newItemPreview{
-    background-color: rgb(241, 241, 241);
+    background-color: rgb(139, 139, 139);
     border-radius: 5px;
   }
   .networkDivider {
