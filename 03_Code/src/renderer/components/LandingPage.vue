@@ -172,6 +172,7 @@
         this.$electron.shell.openExternal(link)
       },
       process() {
+        if (this.$data.pipeNetworks.length === 0) return;
         this.validate();
         if (this.$data.valid) {
           ipcRenderer.send('processPipeNetworks', {pipeNetworks: this.$data.pipeNetworks, globalNetworkConfig: this.$data.globalNetworkConfig});
@@ -351,7 +352,7 @@
     height: 8%;
     width: 15%;
     position:absolute;
-    bottom: 7%;
+    bottom: 6%;
     right: 2%;
     border-radius: 7px;
     font-size: 30px;

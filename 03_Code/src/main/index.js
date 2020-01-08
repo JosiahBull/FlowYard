@@ -24,7 +24,7 @@ function createWindow () {
     width: 1050,
     height: 600,
     minWidth: 1050,
-    minHeight: 500,
+    minHeight: 600,
     title: 'FlowYard',
     webPreferences: {
       nodeIntegration: true,
