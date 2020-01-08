@@ -4,7 +4,7 @@
       <h1>Network Configuration</h1>
       <div id="networkConfigWrapper" class="elementContainerStyling">
         <div v-for="(network, i) in pipeNetworks">
-          <div v-bind:class="{ 'errorDropdownActiveNetwork': !network.valid, 'exitHover': network.exitHover, 'networkError': !network.valid, 'networkWarn' : (network.warn && network.valid) }" class="networkItem">  
+          <div v-bind:class="{ 'errorDropdownActiveNetwork': !network.valid || network.warn, 'exitHover': network.exitHover, 'networkError': !network.valid, 'networkWarn' : (network.warn && network.valid) }" class="networkItem">  
             <h2>Pipe Network: {{network.id}}</h2>
             <div class="networkExit" @mouseup="pipeNetworks.splice(i, 1);" @mouseover="network.exitHover = true;" @mouseleave="network.exitHover = false;"></div>
             <div class="networkDivider"></div>
@@ -14,35 +14,34 @@
             <h3>Check Internal Intersections: <input type="checkbox" v-model="network.checkInternalIntersections"> </h3>
             <h3>Pipe Diameter: <input v-model="network.diameter" placeholder="click to enter (mm)"> </h3>
           </div>
-          <div class="errorDropdown" v-bind:class="{'errorDropdownActive': !network.valid}">
-            <h5>{{network.errors[0]}}</h5>
+          <div class="errorDropdown" v-bind:class="{'errorDropdownActive': !network.valid, 'warningDropdownActive' : network.warn && network.valid}">
+            <h5>{{network.errors[0] || network.warnings[0]}}</h5>
           </div>
         </div>
-        <!-- <div id="newItemPreview" @mousedown="add()">
-          <h2>Add New</h2>
+      </div>
+      <div id="newItemPreview" @mousedown="add()">
+          <!-- <h2>Add New</h2>
           <div class="networkDivider"></div>
           <div class="newItemBlock"></div>
           <div class="newItemBlock"></div>
           <div class="networkDivider"></div>
           <div class="newItemBlock"></div>
-          <div class="newItemBlock"></div>
-        </div> -->
-      </div>
-      <div id="globalOptions" class="test">
-        <!-- <h1>Global Network Options</h1> -->
-        <h4>Global Intersections: <input type="checkbox" v-model="globalNetworkConfig.checkGlobalCollisions"> </h4>
-        <h4>Simplify Verticies: <input type="checkbox" v-model="globalNetworkConfig.simplifyVerticies"> </h4>
-        <!-- <h4>Remove Duplicates? <input type="checkbox" v-model="globalNetworkConfig.removeDuplicates"> </h4> -->
-      </div>
+          <div class="newItemBlock"></div> -->
+        </div>
     </div>
 
     <div id="previewWrapper" class="wrapperStyling">
       <h1>Output Preview</h1>
       <canvas id="outputCanvas" class="elementContainerStyling"></canvas>
     </div>
+    <div id="globalOptions" class="test">
+        <!-- <h1>Global Network Options</h1> -->
+        <h1>Global Intersections: <input type="checkbox" v-model="globalNetworkConfig.checkGlobalCollisions"> </h1>
+        <h1>Simplify Verticies: <input type="checkbox" v-model="globalNetworkConfig.simplifyVerticies"> </h1>
+        <!-- <h4>Remove Duplicates? <input type="checkbox" v-model="globalNetworkConfig.removeDuplicates"> </h4> -->
+    </div>
+    <button name="processNetworkButton" type="button" id="processButton" v-on:click="saveFile();">SAVE</button>
 
-
-    <button name="processNetworkButton" type="button" id="processButton" v-on:click="process()">Process!</button>
     <div id="footer"></div>
   </div>
 </template>
@@ -53,6 +52,7 @@
   import 'typeface-karla/index.css';
   import 'typeface-domine/index.css';
   import 'typeface-open-sans/index.css';
+  import 'material-design-icons';
   let dialog = remote.dialog;
   let canvas, processedPipeNetwork, ctx, dpi;
   window.onload = function() {
@@ -92,10 +92,10 @@
     return output;
   };
   function updateCanvasDisplay() {
-    if (processedPipeNetwork.raw === undefined) return;
+    if (processedPipeNetwork === undefined) return;
     let { lines, points, verticies } = processedPipeNetwork.raw;
-    let minX = points[0].x;
-    let minY = points[0].y;
+    let minX = changeState(points)[0].x;
+    let minY = changeState(points)[0].y;
     let maxX = 0;
     let maxY = 0;
     changeState(points).concat(changeState(verticies)).forEach(point => {
@@ -242,39 +242,83 @@
           return pipeNetwork;
         });
       },
+      saveFile() {
+        if (processedPipeNetwork === undefined) return;
+        return dialog.showSaveDialog({
+          title: 'testBois.txt',
+          message: 'helloWorld.txt',
+          nameFieldLabel: '.txt'
+        }).then(result => {
+          let { canceled, filePath } = result;
+          if (!canceled) {
+            ipcRenderer.send('saveFile', {
+              path: filePath,
+              data: processedPipeNetwork.saveFile
+            })
+          }
+        })
+      }
     },
     data: function() {
       return {
         pipeNetworks: [
-          {
-            id: 0,
-            shapeFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\shapey.shp',
-            pointFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\points.csv',
-            checkInternalIntersections: true,
-            diameter: 5,
-            valid: true,
-            warn: false,
-            exitHover: false,
-            errors: [],
-            warnings: []
-          }
+          // {
+          //   id: 0,
+          //   shapeFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\shapey.shp',
+          //   pointFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\points.csv',
+          //   checkInternalIntersections: true,
+          //   diameter: 5,
+          //   valid: true,
+          //   warn: false,
+          //   exitHover: false,
+          //   errors: [],
+          //   warnings: []
+          // }
         ],
         globalNetworkConfig : {
           checkGlobalCollisions: false,
           simplifyVerticies: true,
           removeDuplicates: true
         },
-        valid : false
+        valid: false,
+        globalVals: {
+          diameter: 0,
+          shapeFile: '',
+          pointFile: '',
+          checkInternalIntersections: ''
+        }
       }
     },
-    // watch: {
-    //   pipeNetworks: {
-    //     handler(newVal, oldVal) {
-    //       console.log('boiboiboiboib')
-    //     }, 
-    //     deep: true
-    //   }
-    // }
+    watch: {
+      globalNetworkConfig: {
+        handler(newVal, oldVal) {
+          this.process();
+        }, 
+        deep: true
+      },
+      pipeNetworks: {
+        handler(newVal, oldVal) {
+          let newGlobalDia = 0;
+          let newShapeFile = '';
+          let newPointFile = '';
+          let newInternalIntersect = '';
+          this.pipeNetworks.forEach(network => {
+            newGlobalDia += network.diameter;
+            newShapeFile += network.shapeFile;
+            newPointFile += network.pointFile;
+            newInternalIntersect += network.checkInternalIntersections;
+          });
+          if ((newGlobalDia !== this.globalVals.diameter && !isNaN(newGlobalDia)) || newShapeFile !== this.globalVals.shapeFile || newPointFile !== this.globalVals.pointFile || newInternalIntersect !== this.globalVals.checkInternalIntersections) {
+            this.globalVals.diameter = newGlobalDia;
+            this.globalVals.shapeFile = newShapeFile;
+            this.globalVals.pointFile = newPointFile;
+            this.globalVals.checkInternalIntersections = newInternalIntersect;
+            this.process();
+          }
+        },
+        deep: true
+      }
+    }
   }
 </script>
 
@@ -287,11 +331,11 @@
     outline: none;
   }
   h1 {
-    margin: 7px;
-    margin-left: 15px;
+    margin: 8px;
+    margin-left: 0px;
     font-weight: bold;
     font-size: 3.5vh;
-    color: rgb(0, 0, 0);
+    color: rgb(255, 255, 255);
     font-family: 'Open Sans', sans-serif;
     white-space: nowrap;
   }
@@ -304,32 +348,37 @@
   }
   /* Processing Button CSS */
   #processButton {
-    height: 10%;
+    height: 8%;
     width: 15%;
     position:absolute;
-    bottom: 5%;
-    right: 7%;
+    bottom: 7%;
+    right: 2%;
     border-radius: 7px;
-    font-size: 25px;
+    font-size: 30px;
+    font-family: 'Open Sans', sans-serif;
+    font-weight: 700;
+    background-color: rgb(168, 168, 168);
+    border-color: rgb(168, 168, 168);
   }
+
   /* Network Config Window Things */
   #networkConfigWindow {
     width: 35%;
-    height: 90%;
+    height: 91%;
     position: absolute;
-    top: 5%;
+    top: 3%;
     left: 3%;
     display: flex;
     flex-direction: column;
   }
   #networkConfigWrapper {
     position: relative;
-    margin: 0% auto;
-    width: 94%;
-    height: 80%;
-    overflow: auto;
+    /* margin: 0% auto; */
+    width: 100%;
+    height: 95%;
+    overflow:auto;
   }
-  .networkItem, #newItemPreview {
+  .networkItem {
     position: relative;
     width: 92%;
     z-index: 1; 
@@ -349,13 +398,13 @@
     cursor: pointer;
   }
   .networkDivider {
-    height: 3px;
+    height: 2px;
     width: 95%;
     /* margin: 0 auto; */
     left: 5px;
     position: relative;
   }
-  .networkItem > h2, #newItemPreview > h2 {
+  .networkItem > h2 {
     padding: 5px;
     font-weight: 700;
     margin: 0;
@@ -384,10 +433,9 @@
     width: 10%;
     margin-left: 10px;
   }
-  .errorDropdown {
+  .errorDropdown, .warningDropdown {
     position: relative;
     z-index: 0;
-    background-color: darkred;
     height: 0px;
     font-size: 0px;
     margin: 0 auto;
@@ -397,6 +445,12 @@
     transition: top 1s, height 1s, font-size 1s;
     border-radius: 7px;
   }
+  .warningDropdownActive {
+    background-color:rgb(204, 134, 5);
+  }
+  .errorDropdownActive {
+    background-color: darkred;
+  }
   .errorDropdown > h5 {
     position: relative;
     top: 5px;
@@ -404,7 +458,7 @@
     margin: 0;
     font-family: 'Open Sans', sans-serif;
   }
-  .errorDropdownActive {
+  .errorDropdownActive, .warningDropdownActive {
     top: 2px;
     height: 40px;
     font-size: 25px;
@@ -414,35 +468,45 @@
   }
   /* New Item CSS */
   #newItemPreview {
-    height: 182px;
+    height: 65px;
+    width: 65px;
+    border-radius: 50%;
+    background-color: purple;
+    position: absolute;
+    bottom: 30px;
+    right: 30px;
     cursor: pointer;
+    z-index: 5;
   }
   /* Global Options Window */
   #globalOptions {
     /* background-color: #5891ed; */
-    position: relative;
-    margin: 2% auto;
-    width: 94%;
-    overflow:auto;
+    position: absolute;
+    bottom: 5%;
+    right: 37%;
+    width: 20%;
+    overflow:visible;
     flex: none;
   }
-  #globalOptions > h4 {
-    display:inline-block;
+  /* #globalOptions > h4 {
     font-size: 25px;
-    margin: 0;
+    margin: 15px;
     padding: 0;
-  }
+    font-family: 'Open Sans', sans-serif;
+    font-weight: 700;
+    color: white;
+  } */
   /* Output Preview Things */
   #previewWrapper {
     width: 55%;
-    height: 75%;
+    height: 80%;
     position: absolute;
     right: 2%;
-    top: 5%;
+    top: 3%;
   }
   #outputCanvas {
     position: relative;
-    width: 95%;
+    width: 100%;
     height: 90%;
     margin: 0 auto;
     display: block;
@@ -461,29 +525,32 @@
   /* Colors and things for styling */
   .elementContainerStyling {
     border-radius: 5px;
-    /* box-shadow: inset 0px 0px 10px 2px rgba(0,0,0,0.7); */
-    /* background-color: rgb(168, 168, 168); */
+    box-shadow: inset 0px 0px 10px 2px rgba(0,0,0,0.7);
+    background-color: rgb(168, 168, 168);
   }
   .wrapperStyling {
     border-radius: 5px;
-    background-color: rgb(255, 255, 255);
-    box-shadow: 0px 0px 10px 2px rgba(0,0,0,0.75);
+    /* background-color: rgb(255, 255, 255); */
+    /* box-shadow: 0px 0px 10px 2px rgba(0,0,0,0.75); */
   }
-  .networkItem, #newItemPreview{
+  .networkItem {
     background-color: rgb(139, 139, 139);
     border-radius: 5px;
   }
   .networkDivider {
-    background-color: rgb(94, 2, 87);
+    background-color: rgb(61, 61, 61);
   }
   .newItemBlock {
     height: 20px;
-    margin: 7px;
+    margin: 12px;
     width: 75%;
     background-color: grey;
     border-radius: 5px;
   }
-  .exitHover, .networkError {
+  .networkError {
+    border-color: darkred;
+  }
+  .exitHover {
     border-color: red;
   }
   .networkWarn {
@@ -491,12 +558,12 @@
   }
   #processButton:hover {
     box-shadow: 6px 10px 22px -4px rgba(0,0,0,0.49);
-    background-color: green;
-    border-color: red;
+    background-color: rgb(80, 80, 80);
+    border-color: rgb(80, 80, 80);
   }
   #processButton:active {
-    background-color: blue;
-    border-color: yellow;
+    background-color: rgb(60, 60, 60);
+    border-color: rgb(60, 60, 60);
   }
 
   /* Media Queries (TODO)*/
@@ -505,7 +572,7 @@
       h1 {
         font-size: 30px;
       }
-      .networkItem > h2, #newItemPreview > h2 {
+      .networkItem > h2 {
         font-size: 25px;
       }
       .networkItem > h3 {
@@ -534,5 +601,4 @@
       background-color: green;
     }
   } */
-
 </style>
