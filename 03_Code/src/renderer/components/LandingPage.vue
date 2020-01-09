@@ -27,7 +27,7 @@
           <div class="networkDivider"></div>
           <div class="newItemBlock"></div>
           <div class="newItemBlock"></div> -->
-        </div>
+      </div>
     </div>
 
     <div id="previewWrapper" class="wrapperStyling">
@@ -52,7 +52,6 @@
   import 'typeface-karla/index.css';
   import 'typeface-domine/index.css';
   import 'typeface-open-sans/index.css';
-  import 'material-design-icons';
   let dialog = remote.dialog;
   let canvas, processedPipeNetwork, ctx, dpi;
   window.onload = function() {
@@ -64,6 +63,20 @@
   window.onresize = function() {
     fixDpi();
     updateCanvasDisplay();
+  };
+  const os = require ('os');
+  const username = os.userInfo ().username;
+  // console.log(username)
+  function getFormattedTime() {
+    let today = new Date();
+    let y = today.getFullYear();
+    // JavaScript months are 0-based.
+    let m = today.getMonth() + 1;
+    let d = today.getDate();
+    let h = today.getHours();
+    let mi = today.getMinutes();
+    let s = today.getSeconds();
+    return y + "-" + m + "-" + d + "-" + h + "-" + mi;
   };
   function fixDpi() {
     let style_height = +getComputedStyle(canvas).getPropertyValue("height").slice(0, -2);
@@ -246,9 +259,13 @@
       saveFile() {
         if (processedPipeNetwork === undefined) return;
         return dialog.showSaveDialog({
-          title: 'testBois.txt',
-          message: 'helloWorld.txt',
-          nameFieldLabel: '.txt'
+          title: 'Save FlowYard Output',
+          defaultPath: 'FlowYard_' + username + '_' + getFormattedTime(),
+          filters: [
+            { name: 'mapFile', extensions: ['inp'] },
+            { name: 'textFile', extensions: ['txt']},
+            { name: 'All Files', extensions: ['*'] }
+          ]
         }).then(result => {
           let { canceled, filePath } = result;
           if (!canceled) {
@@ -263,18 +280,18 @@
     data: function() {
       return {
         pipeNetworks: [
-          // {
-          //   id: 0,
-          //   shapeFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\shapey.shp',
-          //   pointFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\points.csv',
-          //   checkInternalIntersections: true,
-          //   diameter: 5,
-          //   valid: true,
-          //   warn: false,
-          //   exitHover: false,
-          //   errors: [],
-          //   warnings: []
-          // }
+          {
+            id: 0,
+            shapeFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\shapey.shp',
+            pointFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\points.csv',
+            checkInternalIntersections: true,
+            diameter: 5,
+            valid: true,
+            warn: false,
+            exitHover: false,
+            errors: [],
+            warnings: []
+          }
         ],
         globalNetworkConfig : {
           checkGlobalCollisions: false,
@@ -358,8 +375,10 @@
     font-size: 30px;
     font-family: 'Open Sans', sans-serif;
     font-weight: 700;
-    background-color: rgb(168, 168, 168);
-    border-color: rgb(168, 168, 168);
+    background-color:rgb(68, 14, 73);
+    border-color: transparent;
+    color: white;
+    box-shadow: 0px 0px 5px 0px rgba(0,0,0,0.75);
   }
 
   /* Network Config Window Things */
@@ -471,6 +490,8 @@
   #newItemPreview {
     height: 65px;
     width: 65px;
+    background-image: url('/static/images/add-24px.svg');
+    background-size: cover;
     border-radius: 50%;
     background-color: purple;
     position: absolute;
@@ -478,6 +499,13 @@
     right: 30px;
     cursor: pointer;
     z-index: 5;
+    box-shadow: 0px 0px 5px 0px rgba(0,0,0,0.75);
+  }
+  #newItemPreview:hover {
+    box-shadow: 0px 0px 5px 2px rgba(0,0,0,0.75);
+  }
+  #newItemPreview:active {
+    background-color:rgb(68, 14, 73);
   }
   /* Global Options Window */
   #globalOptions {
@@ -558,13 +586,13 @@
     border-color: rgb(199, 129, 0);
   }
   #processButton:hover {
-    box-shadow: 6px 10px 22px -4px rgba(0,0,0,0.49);
-    background-color: rgb(80, 80, 80);
-    border-color: rgb(80, 80, 80);
+    box-shadow: 0px 0px 5px 2px rgba(0,0,0,0.75);
+    background-color:rgb(68, 14, 73);
+    /* border-color: rgb(68, 14, 73); */
   }
   #processButton:active {
-    background-color: rgb(60, 60, 60);
-    border-color: rgb(60, 60, 60);
+    background-color: rgb(36, 6, 39);
+    /* border-color: rgb(36, 6, 39); */
   }
 
   /* Media Queries (TODO)*/
