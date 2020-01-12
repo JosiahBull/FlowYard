@@ -6,7 +6,7 @@
         <div v-for="(network, i) in pipeNetworks">
           <div v-bind:class="{ 'errorDropdownActiveNetwork': !network.valid || network.warn, 'exitHover': network.exitHover, 'networkError': !network.valid, 'networkWarn' : (network.warn && network.valid) }" class="networkItem">  
             <h2>Pipe Network: {{network.id}}</h2>
-            <div class="networkExit" @mouseup="pipeNetworks.splice(i, 1);" @mouseover="network.exitHover = true;" @mouseleave="network.exitHover = false;"></div>
+            <div class="networkExit" @mouseup="pipeNetworks.splice(i, 1);" @mouseover="network.exitHover = true;" @mouseleave="network.exitHover = false;" v-bind:class="{'exitHoverActive': network.exitHover}"> </div>
             <div class="networkDivider"></div>
             <h3>Shape File: <button v-on:click="browseFile(network.shapeFile).then(filePath => network.shapeFile = filePath)">Click to Select</button>{{network.shapeFile.replace(/^.*[\\\/]/, '')}}</h3>
             <h3>Point File: <button v-on:click="browseFile(network.pointFile).then(filePath => network.pointFile = filePath)">Click to Select</button>{{network.pointFile.replace(/^.*[\\\/]/, '')}}</h3>
@@ -43,15 +43,15 @@
     <button name="processNetworkButton" type="button" id="processButton" v-on:click="process();saveFile();">SAVE</button>
 
     <div id="footer"></div>
+    
   </div>
 </template>
 
 <script>
   import SystemInformation from './LandingPage/SystemInformation';
   import { net, ipcRenderer, remote } from 'electron';
-  import 'typeface-karla/index.css';
-  import 'typeface-domine/index.css';
   import 'typeface-open-sans/index.css';
+  import 'pretty-checkbox/dist/pretty-checkbox.min.css';
   let dialog = remote.dialog;
   let canvas, processedPipeNetwork, ctx, dpi;
   window.onload = function() {
@@ -106,7 +106,6 @@
       return output;
   };
   function updateCanvasDisplay() {
-    console.log(processedPipeNetwork)
     if (processedPipeNetwork === undefined || processedPipeNetwork === null) return;
     let { lines, points, verticies } = processedPipeNetwork.raw || {};
     let minX = changeState(points)[0].x;
@@ -161,7 +160,7 @@
       })
     });
     ctx.stroke();
-    let rectSize = 9;
+    let rectSize = 6.5;
     ctx.fillStyle = 'Blue';
     changeState(verticies).forEach(vertex => {
       ctx.beginPath();
@@ -383,6 +382,7 @@
     border-color: transparent;
     color: white;
     box-shadow: 0px 0px 5px 0px rgba(0,0,0,0.75);
+    cursor: pointer;
   }
 
   /* Network Config Window Things */
@@ -414,12 +414,16 @@
   }
   .networkExit {
     width: 30px;
-    height: 10px;
-    background-color: red;
+    height: 30px;
     position: absolute;
-    top: 10px;
-    right: 10px;
+    top: 2px;
+    right: 2px;
     cursor: pointer;
+    background-image: url('/static/images/clear-24px.svg');
+    background-size: cover;
+  }
+  .exitHoverActive {
+    background-image: url('/static/images/clear_hover-24px.svg');
   }
   .networkDivider {
     height: 2px;
@@ -559,7 +563,7 @@
   .elementContainerStyling {
     border-radius: 5px;
     box-shadow: inset 0px 0px 10px 2px rgba(0,0,0,0.7);
-    background-color: rgb(168, 168, 168);
+    background-color: rgb(230, 230, 230);
   }
   .wrapperStyling {
     border-radius: 5px;

@@ -53,6 +53,7 @@
   "dependencies": {
     "axios": "^0.18.0",
     "csvtojson": "^2.0.10",
+    "pretty-checkbox": "^3.0.3",
     "shapefile": "^0.6.6",
     "typeface-domine": "0.0.72",
     "typeface-karla": "0.0.72",
