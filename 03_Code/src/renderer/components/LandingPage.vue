@@ -6,10 +6,10 @@
         <div v-for="(network, i) in pipeNetworks">
           <div v-bind:class="{ 'errorDropdownActiveNetwork': !network.valid || network.warn, 'exitHover': network.exitHover, 'networkError': !network.valid, 'networkWarn' : (network.warn && network.valid) }" class="networkItem">  
             <h2>Pipe Network: {{network.id}}</h2>
-            <div class="networkExit" @mouseup="pipeNetworks.splice(i, 1);" @mouseover="network.exitHover = true;" @mouseleave="network.exitHover = false;" v-bind:class="{'exitHoverActive': network.exitHover, 'exitHoverErrorActive' : !network.valid}"> </div>
+            <div class="networkExit" @mouseup="pipeNetworks.splice(i, 1);" @mouseover="network.exitHover = true; hasChanged();" @mouseleave="network.exitHover = false;" v-bind:class="{'exitHoverActive': network.exitHover, 'exitHoverErrorActive' : !network.valid}"> </div>
             <div class="networkDivider"></div>
-            <h3>Shape File: <button v-on:click="browseFile(network.shapeFile).then(filePath => network.shapeFile = filePath)">Click to Select</button>{{network.shapeFile.replace(/^.*[\\\/]/, '')}}</h3>
-            <h3>Point File: <button v-on:click="browseFile(network.pointFile).then(filePath => network.pointFile = filePath)">Click to Select</button>{{network.pointFile.replace(/^.*[\\\/]/, '')}}</h3>
+            <h3>Shape File: <button v-on:click="browseFile(network.shapeFile, {name: 'Shape Files', extensions: ['shp']}).then(filePath => network.shapeFile = filePath)">Click to Select</button>{{network.shapeFile.replace(/^.*[\\\/]/, '')}}</h3>
+            <h3>Point File: <button v-on:click="browseFile(network.pointFile, {name: 'CSV Files', extensions: ['csv']}).then(filePath => network.pointFile = filePath)">Click to Select</button>{{network.pointFile.replace(/^.*[\\\/]/, '')}}</h3>
             <div class="networkDivider"></div>
             <h3>Check Internal Intersections: <input type="checkbox" v-model="network.checkInternalIntersections"> </h3>
             <h3>Pipe Diameter: <input v-model="network.diameter" placeholder="click to enter (mm)"> </h3>
@@ -92,11 +92,10 @@
     let y = today.getFullYear();
     // JavaScript months are 0-based.
     let m = today.getMonth() + 1;
+    if (m.toString().length === 1) m = '0' + m;
     let d = today.getDate();
-    let h = today.getHours();
-    let mi = today.getMinutes();
-    let s = today.getSeconds();
-    return y + "-" + m + "-" + d + "-" + h + "-" + mi;
+    if (d.toString().length === 1) d = '0' + d;
+    return d + '-' + m + '-' + y;
   };
   function fixDpi() {
     let style_height = +getComputedStyle(canvas).getPropertyValue("height").slice(0, -2);
@@ -204,9 +203,6 @@
     name: 'landing-page',
     components: { SystemInformation },
     methods: {
-      open(link) {
-        this.$electron.shell.openExternal(link)
-      },
       process() {
         if (this.$data.pipeNetworks.length === 0) return;
         this.validate();
@@ -215,8 +211,13 @@
         } 
         //Consider adding an else here to display an error to the user.
       },
-      browseFile(currentValue) {
-        return dialog.showOpenDialog().then(result => {
+      browseFile(currentValue, type) {
+        return dialog.showOpenDialog({
+          filters: [
+            type,
+            { name: 'All Files', extensions: ['*']}
+          ]
+        }).then(result => {
           let {cancled, filePaths} = result;
           if (!cancled) {
             return filePaths[0];
@@ -299,23 +300,46 @@
             })
           }
         })
+      },
+      hasChanged() {
+        let newGlobalDia = 0;
+        let newShapeFile = '';
+        let newPointFile = '';
+        let newInternalIntersect = '';
+        this.$data.pipeNetworks.forEach(network => {
+          newGlobalDia += network.diameter;
+          newShapeFile += network.shapeFile;
+          newPointFile += network.pointFile;
+          newInternalIntersect += network.checkInternalIntersections;
+        });
+        if ((newGlobalDia !== this.$data.globalVals.diameter && !isNaN(newGlobalDia)) || newShapeFile !== this.$data.globalVals.shapeFile || newPointFile !== this.$data.globalVals.pointFile || newInternalIntersect !== this.$data.globalVals.checkInternalIntersections) {
+          this.$data.globalVals.diameter = newGlobalDia;
+          this.$data.globalVals.shapeFile = newShapeFile;
+          this.$data.globalVals.pointFile = newPointFile;
+          this.$data.globalVals.checkInternalIntersections = newInternalIntersect;
+          console.log('returned true;')
+          return true;
+        } else {
+          console.log('returned false;')
+          return false;
+        }
       }
     },
     data: function() {
       return {
         pipeNetworks: [
-          {
-            id: 0,
-            shapeFile: 'C:\\Users\\josia\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\shapey.shp',
-            pointFile: 'C:\\Users\\josia\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\points.csv',
-            checkInternalIntersections: true,
-            diameter: 5,
-            valid: true,
-            warn: false,
-            exitHover: false,
-            errors: [],
-            warnings: []
-          }
+          // {
+          //   id: 0,
+          //   shapeFile: 'C:\\Users\\josia\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\shapey.shp',
+          //   pointFile: 'C:\\Users\\josia\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\points.csv',
+          //   checkInternalIntersections: true,
+          //   diameter: 5,
+          //   valid: true,
+          //   warn: false,
+          //   exitHover: false,
+          //   errors: [],
+          //   warnings: []
+          // }
         ],
         globalNetworkConfig : {
           checkGlobalCollisions: false,
@@ -340,21 +364,7 @@
       },
       pipeNetworks: {
         handler(newVal, oldVal) {
-          let newGlobalDia = 0;
-          let newShapeFile = '';
-          let newPointFile = '';
-          let newInternalIntersect = '';
-          this.pipeNetworks.forEach(network => {
-            newGlobalDia += network.diameter;
-            newShapeFile += network.shapeFile;
-            newPointFile += network.pointFile;
-            newInternalIntersect += network.checkInternalIntersections;
-          });
-          if ((newGlobalDia !== this.globalVals.diameter && !isNaN(newGlobalDia)) || newShapeFile !== this.globalVals.shapeFile || newPointFile !== this.globalVals.pointFile || newInternalIntersect !== this.globalVals.checkInternalIntersections) {
-            this.globalVals.diameter = newGlobalDia;
-            this.globalVals.shapeFile = newShapeFile;
-            this.globalVals.pointFile = newPointFile;
-            this.globalVals.checkInternalIntersections = newInternalIntersect;
+          if (this.hasChanged()) {
             this.process();
           }
         },
