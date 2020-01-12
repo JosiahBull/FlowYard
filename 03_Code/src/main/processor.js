@@ -30,6 +30,7 @@ function changeState(input) {
     let output;
     if (Array.isArray(input)) {
         output = {};
+        if (input === undefined || input === null) return output;
         input.forEach(subObj => {
             let subObjId = subObj.id;
             delete subObj.id;
@@ -37,6 +38,7 @@ function changeState(input) {
         })
     } else {
         output = [];
+        if (input === undefined || input === null) return output;
         Object.keys(input).forEach(subObj => {
             output.push({
                 ...input[subObj],
@@ -332,6 +334,31 @@ let get = (function() {
             });
             saveFile += '\n[END]\n';
             return saveFile;
+        },
+        removeDuplicates : function(lines, points) {
+            let removedPointDirectory = {};
+            let compPoints = changeState(points);
+            let filteredPoints = changeState(changeState(points).filter(point => {
+                let valid = true;
+                compPoints.forEach(checkPoint => {
+                    if (point.id === checkPoint.id) return;
+                    if (Math.abs(checkPoint.x - point.x) < toleranceValue && Math.abs(checkPoint.y - point.y) < toleranceValue) {
+                        if (Object.values(removedPointDirectory).includes(point.id)) return;
+                        valid = false;
+                        removedPointDirectory[point.id] = checkPoint.id;
+                    };
+                });
+                return valid;
+            }));
+            let filteredLines = changeState(changeState(lines).map(line => {
+                if (line.startNode in removedPointDirectory) line.startNode = removedPointDirectory[line.startNode];
+                if (line.endNode in removedPointDirectory) line.endNode = removedPointDirectory[line.endNode];
+                return line;
+            }));
+            return {
+                points: filteredPoints,
+                lines: filteredLines
+            }
         }
     }
 })();
@@ -449,15 +476,15 @@ export default function(pipeNetworkArr, globalOptions) {
             return result;
         })
     })).then(() => {
-        if (removeDuplicates) {
-            //TODO
+        if (checkGlobalCollisions) {
+            return get.pointCollisions(output.lines, output.points).then(result => {
+                return get.lineCollisions(result.lines, result.points);
+            });
         }
         return output;
     }).then(result => {
-        if (checkGlobalCollisions) {
-            return get.pointCollisions(result.lines, result.points).then(result => {
-                return get.lineCollisions(result.lines, result.points)
-            });
+        if (removeDuplicates) {
+            return get.removeDuplicates(result.lines, result.points);
         }
         return result;
     }).then(result => {
@@ -466,12 +493,11 @@ export default function(pipeNetworkArr, globalOptions) {
         }
         return result
     }).then(result => {
-        fs.writeFileSync('test.inp', get.saveFile(result.lines, result.points, result.verticies))
         return {
             raw: result,
             saveFile: get.saveFile(result.lines, result.points, result.verticies)
         }
     }).catch(err => {
         console.log(err);
-    });
+    })
 };

@@ -40,7 +40,7 @@
         <h1>Simplify Verticies: <input type="checkbox" v-model="globalNetworkConfig.simplifyVerticies"> </h1>
         <!-- <h4>Remove Duplicates? <input type="checkbox" v-model="globalNetworkConfig.removeDuplicates"> </h4> -->
     </div>
-    <button name="processNetworkButton" type="button" id="processButton" v-on:click="saveFile();">SAVE</button>
+    <button name="processNetworkButton" type="button" id="processButton" v-on:click="process();saveFile();">SAVE</button>
 
     <div id="footer"></div>
   </div>
@@ -66,7 +66,6 @@
   };
   const os = require ('os');
   const username = os.userInfo ().username;
-  // console.log(username)
   function getFormattedTime() {
     let today = new Date();
     let y = today.getFullYear();
@@ -85,28 +84,31 @@
     canvas.setAttribute('width', style_width * dpi);
   };
   function changeState(input) {
-    let output;
-    if (Array.isArray(input)) {
-        output = {};
-        input.forEach(subObj => {
-            let subObjId = subObj.id;
-            delete subObj.id;
-            output[subObjId] = subObj;
-        })
-    } else {
-        output = [];
-        Object.keys(input).forEach(subObj => {
-            output.push({
-                ...input[subObj],
-                id: Number(subObj)
-            })
-        })
-    }
-    return output;
+      let output;
+      if (Array.isArray(input)) {
+          output = {};
+          if (input === undefined || input === null) return output;
+          input.forEach(subObj => {
+              let subObjId = subObj.id;
+              delete subObj.id;
+              output[subObjId] = subObj;
+          })
+      } else {
+          output = [];
+          if (input === undefined || input === null) return output;
+          Object.keys(input).forEach(subObj => {
+              output.push({
+                  ...input[subObj],
+                  id: Number(subObj)
+              })
+          })
+      }
+      return output;
   };
   function updateCanvasDisplay() {
-    if (processedPipeNetwork === undefined) return;
-    let { lines, points, verticies } = processedPipeNetwork.raw;
+    console.log(processedPipeNetwork)
+    if (processedPipeNetwork === undefined || processedPipeNetwork === null) return;
+    let { lines, points, verticies } = processedPipeNetwork.raw || {};
     let minX = changeState(points)[0].x;
     let minY = changeState(points)[0].y;
     let maxX = 0;
@@ -159,18 +161,19 @@
       })
     });
     ctx.stroke();
+    let rectSize = 9;
+    ctx.fillStyle = 'Blue';
+    changeState(verticies).forEach(vertex => {
+      ctx.beginPath();
+      ctx.fillRect(vertex.x - rectSize/2, vertex.y - rectSize/2, rectSize, rectSize);
+    });
     ctx.fillStyle = 'Red';
     changeState(points).forEach(point => {
       ctx.beginPath();
       ctx.arc(point.x, point.y, 3, 0, 2*Math.PI)
       ctx.fill();
     });
-    let rectSize = 7;
-    ctx.fillStyle = 'Blue';
-    changeState(verticies).forEach(vertex => {
-      ctx.beginPath();
-      ctx.fillRect(vertex.x - rectSize/2, vertex.y - rectSize/2, rectSize, rectSize);
-    });
+
     
   };
   ipcRenderer.on('pipeNetworksProcessed', (event, args) => {
@@ -258,6 +261,7 @@
       },
       saveFile() {
         if (processedPipeNetwork === undefined) return;
+        if (!this.$data.valid) return;
         return dialog.showSaveDialog({
           title: 'Save FlowYard Output',
           defaultPath: 'FlowYard_' + username + '_' + getFormattedTime(),
@@ -282,8 +286,8 @@
         pipeNetworks: [
           {
             id: 0,
-            shapeFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\shapey.shp',
-            pointFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\points.csv',
+            shapeFile: 'C:\\Users\\josia\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\shapey.shp',
+            pointFile: 'C:\\Users\\josia\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\points.csv',
             checkInternalIntersections: true,
             diameter: 5,
             valid: true,
