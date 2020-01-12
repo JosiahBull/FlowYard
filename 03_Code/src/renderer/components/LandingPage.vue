@@ -6,7 +6,7 @@
         <div v-for="(network, i) in pipeNetworks">
           <div v-bind:class="{ 'errorDropdownActiveNetwork': !network.valid || network.warn, 'exitHover': network.exitHover, 'networkError': !network.valid, 'networkWarn' : (network.warn && network.valid) }" class="networkItem">  
             <h2>Pipe Network: {{network.id}}</h2>
-            <div class="networkExit" @mouseup="pipeNetworks.splice(i, 1);" @mouseover="network.exitHover = true;" @mouseleave="network.exitHover = false;" v-bind:class="{'exitHoverActive': network.exitHover}"> </div>
+            <div class="networkExit" @mouseup="pipeNetworks.splice(i, 1);" @mouseover="network.exitHover = true;" @mouseleave="network.exitHover = false;" v-bind:class="{'exitHoverActive': network.exitHover, 'exitHoverErrorActive' : !network.valid}"> </div>
             <div class="networkDivider"></div>
             <h3>Shape File: <button v-on:click="browseFile(network.shapeFile).then(filePath => network.shapeFile = filePath)">Click to Select</button>{{network.shapeFile.replace(/^.*[\\\/]/, '')}}</h3>
             <h3>Point File: <button v-on:click="browseFile(network.pointFile).then(filePath => network.pointFile = filePath)">Click to Select</button>{{network.pointFile.replace(/^.*[\\\/]/, '')}}</h3>
@@ -36,14 +36,31 @@
     </div>
     <div id="globalOptions" class="test">
         <!-- <h1>Global Network Options</h1> -->
-        <h1>Global Intersections: <input type="checkbox" v-model="globalNetworkConfig.checkGlobalCollisions"> </h1>
-        <h1>Simplify Verticies: <input type="checkbox" v-model="globalNetworkConfig.simplifyVerticies"> </h1>
+        <!-- <h1>Global Intersections: <input type="checkbox" v-model="globalNetworkConfig.checkGlobalCollisions"> </h1> -->
+        <!-- <h1>Simplify Verticies: <input type="checkbox" v-model="globalNetworkConfig.simplifyVerticies"> </h1> -->
         <!-- <h4>Remove Duplicates? <input type="checkbox" v-model="globalNetworkConfig.removeDuplicates"> </h4> -->
+          <div class="globalOptionBox"> 
+            <h2>Global Intersections</h2>
+            <div class="pretty p-switch p-fill">
+                <input type="checkbox" v-model="globalNetworkConfig.checkGlobalCollisions"/>
+                <div class="state p-primary">
+                    <label></label>
+                </div>
+            </div>
+          </div>
+          <div class="globalOptionBox"> 
+            <h2>Simplify Verticies</h2>
+            <div class="pretty p-switch p-fill">
+                <input type="checkbox" v-model="globalNetworkConfig.simplifyVerticies"/>
+                <div class="state p-primary">
+                    <label></label>
+                </div>
+            </div>
+          </div>
     </div>
     <button name="processNetworkButton" type="button" id="processButton" v-on:click="process();saveFile();">SAVE</button>
 
     <div id="footer"></div>
-    
   </div>
 </template>
 
@@ -51,7 +68,11 @@
   import SystemInformation from './LandingPage/SystemInformation';
   import { net, ipcRenderer, remote } from 'electron';
   import 'typeface-open-sans/index.css';
-  import 'pretty-checkbox/dist/pretty-checkbox.min.css';
+  import 'pretty-checkbox/dist/pretty-checkbox.css';
+  import img from './add-24px.svg';
+  import img2 from './clear_hover-24px.svg';
+  import img3 from './clear-24px.svg';
+  import img4 from './clear_error-24px.svg';
   let dialog = remote.dialog;
   let canvas, processedPipeNetwork, ctx, dpi;
   window.onload = function() {
@@ -378,7 +399,7 @@
     font-size: 30px;
     font-family: 'Open Sans', sans-serif;
     font-weight: 700;
-    background-color:rgb(68, 14, 73);
+    background-color:rgb(84, 14, 90);
     border-color: transparent;
     color: white;
     box-shadow: 0px 0px 5px 0px rgba(0,0,0,0.75);
@@ -419,11 +440,14 @@
     top: 2px;
     right: 2px;
     cursor: pointer;
-    background-image: url('/static/images/clear-24px.svg');
+    background-image: url('./clear-24px.svg');
     background-size: cover;
   }
+  .exitHoverErrorActive {
+    background-image: url('./clear_error-24px.svg');
+  }
   .exitHoverActive {
-    background-image: url('/static/images/clear_hover-24px.svg');
+    background-image: url('./clear_hover-24px.svg');
   }
   .networkDivider {
     height: 2px;
@@ -498,7 +522,7 @@
   #newItemPreview {
     height: 65px;
     width: 65px;
-    background-image: url('/static/images/add-24px.svg');
+    background-image: url('./add-24px.svg');
     background-size: cover;
     border-radius: 50%;
     background-color: purple;
@@ -513,18 +537,35 @@
     box-shadow: 0px 0px 5px 2px rgba(0,0,0,0.75);
   }
   #newItemPreview:active {
-    background-color:rgb(68, 14, 73);
+    background-color:rgb(84, 14, 90);
   }
   /* Global Options Window */
   #globalOptions {
     /* background-color: #5891ed; */
     position: absolute;
     bottom: 5%;
-    right: 37%;
-    width: 20%;
+    right: 17%;
+    width: 40%;
     overflow:visible;
-    flex: none;
+    display: flex;
+    flex-direction: column;
   }
+  .globalOptionBox div, .globalOptionBox H2 {
+    display: inline-block;
+  }
+  .globalOptionBox H2 {
+    margin: 8px;
+    margin-left: 0px;
+    font-weight: bold;
+    font-size: 3vh;
+    color: rgb(255, 255, 255);
+    font-family: 'Open Sans', sans-serif;
+    white-space: nowrap;
+  }
+  .globalOptionBox div {
+    font-size: 2.5vh;
+  }
+
   /* #globalOptions > h4 {
     font-size: 25px;
     margin: 15px;
@@ -555,7 +596,7 @@
     height: 25px;
     position: fixed;
     bottom:0;
-    background-color: rgb(68, 14, 73);
+    background-color: rgb(84, 14, 90);
     /* box-shadow: 0px 0px 5px 0px rgba(0,0,0,0.66); */
   }
 
@@ -595,14 +636,13 @@
   }
   #processButton:hover {
     box-shadow: 0px 0px 5px 2px rgba(0,0,0,0.75);
-    background-color:rgb(68, 14, 73);
+    background-color:rgb(84, 14, 90);
     /* border-color: rgb(68, 14, 73); */
   }
   #processButton:active {
-    background-color: rgb(36, 6, 39);
+    background-color: rgb(84, 14, 90);
     /* border-color: rgb(36, 6, 39); */
   }
-
   /* Media Queries (TODO)*/
 
     @media screen and (min-height: 840px) {
@@ -617,6 +657,12 @@
       }
       .networkItem > h4 {
         font-size: 13px;
+      }
+      .globalOptionBox div {
+        font-size: 23px;
+      }
+      .globalOptionBox h2 {
+        font-size: 30px;
       }
     }
   /* @media (max-width: 1000px) {
