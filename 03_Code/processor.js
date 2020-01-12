@@ -50,6 +50,13 @@ function duplicatePoint(checkPoint, points) {
 };
 //Main Functions
 let get = (function() {
+    function quickSort(lineGroup) {
+        return lineGroup.sort((a, b) => {
+            if (a.endNode === b.startNode) return -1;
+            if (b.endNode === a.startNode) return 1;
+            return 0;
+        });
+    };
     function resolveLineCollisions(lines, points, collisions) {
         let collisionRegistry = {};
         collisions.forEach(collision => {
@@ -215,10 +222,27 @@ let get = (function() {
             }));
         },
         verticies: function(lines, points) {
+            function verifyLineGroup(lineGroup) {
+                let valid = true;
+                let index, newLineGroups;
+                lineGroup.forEach((line, i) => {
+                    if (i === lineGroup.length-1) return;
+                    if (line.endNode !== lineGroup[i+1].startNode) {
+                        valid = false;
+                        index = i;
+                        newLineGroups = [lineGroup.slice(0, i+1), lineGroup.slice(i+1, lineGroup.length)]
+                    };
+                });
+                return {
+                    lineGroup: lineGroup,
+                    valid: valid,
+                    index: index,
+                    newLineGroups: newLineGroups
+                }
+            }
             let verticies = {};
-            let linesByPoint = {};
-            let groupedLinesByPoint = {};
-            changeState(lines).forEach(line => {
+            // let invalidLines = [];
+            let linesByPoint = Object.values(changeState(lines).reduce((linesByPoint, line) => {
                 if (line.startNode in linesByPoint) {
                     linesByPoint[line.startNode].push(line);
                 } else {
@@ -229,59 +253,46 @@ let get = (function() {
                 } else {
                     linesByPoint[line.endNode] = [line];
                 }
-            });
-            Object.values(linesByPoint).forEach(lineGroup => {
-                if (lineGroup.length !== 2) return; //Point is not a vertex.
-                if (lineGroup[0].lineId !== lineGroup[1].lineId) return; //Two different lines.
-                lineGroup = lineGroup.sort((a, b) => {
-                    if (a.endNode === b.startNode) return -1;
-                    if (b.endNode === a.startNode) return 1;
-                    return 0;
-                });
+                return linesByPoint
+            }, {}));
+            let groupedLinesByPoint = Object.values(linesByPoint.reduce((groupedLinesByPoint, lineGroup) => {
+                if (lineGroup.length !== 2) return groupedLinesByPoint; //Point is not a vertex.
+                if (lineGroup[0].lineId !== lineGroup[1].lineId) return groupedLinesByPoint; //Two different lines.
+                lineGroup = quickSort(lineGroup);
                 if (lineGroup[0].lineId in groupedLinesByPoint) {
                     groupedLinesByPoint[lineGroup[0].lineId].push(lineGroup);
                 } else {
                     groupedLinesByPoint[lineGroup[0].lineId] = [lineGroup];
                 }
-            });
-            groupedLinesByPoint = Object.values(groupedLinesByPoint).map(lineGroup => {
+                return groupedLinesByPoint;
+            }, {})).map(lineGroup => {
                 let exIds = [];
-                return lineGroup.flat().sort((a, b) => {
-                    if (a.endNode === b.startNode) return -1;
-                    if (b.endNode === a.startNode) return 1;
-                    return 0;
-                }).filter(line => {
+                return quickSort(lineGroup.flat()).filter(line => {
                     if (exIds.includes(line.id)) return false;
                     exIds.push(line.id);
                     return true;
                 });
             }).filter(lineGroup => {
-                let valid = true;
-                lineGroup.forEach((line, i) => {
-                    if (i === lineGroup.length -1) return; //Don't bother comparing the last line in the set.
-                    if (line.endNode !== lineGroup[i + 1].startNode) valid = false;
-                });
-                return valid;
-            });
+                let valid = verifyLineGroup(lineGroup);
+                //TODO: Do something if there are further extra lines.
+                return valid.valid;
+            }); //Group the lines by point.
+            // console.log(invalidLines)
             groupedLinesByPoint.forEach(lineGroup => {
-                if (lineGroup[0].id === 325) {
-                    console.log(lineGroup)
-                    return;
-                }
-                lines[lineGroup[0].id].endNode = lineGroup[lineGroup.length-1].endNode;
-                lines[lineGroup[0].id].length = round(lineGroup.reduce((a, b) => a + (b.length || 0), 0));
+                lines[lineGroup[0].id].endNode = lineGroup[lineGroup.length-1].endNode; //Update endNode of line.
+                lines[lineGroup[0].id].length = round(lineGroup.reduce((a, b) => a + (b.length || 0), 0)); //Update length of line.
                 lineGroup.forEach((line, i) => {
                     if (i === lineGroup.length-1) {
                         delete lines[line.id];
                         return;
-                    }; //Dont check the final item in this array, as the endNode of it is the actual endNode.
-                    points[line.endNode].lineId = lineGroup[0].id
+                    }; //Don't check the final item in this array, as the endNode of it is the new final endNode.
+                    points[line.endNode].lineId = lineGroup[0].id;
                     verticies[line.endNode] = points[line.endNode];
                     delete points[line.endNode];
-                    if (i === 0) return; //Don't delete the first item Id, as it is the final line.
+                    if (i === 0) return; //Don't delete teh first item Id, as it is the line we want to keep.
                     delete lines[line.id];
-                });
-            });
+                })
+            }); //Figure out the new points.
             return {
                 lines: lines,
                 points: points,
@@ -290,6 +301,27 @@ let get = (function() {
         },
         length: function(point1, point2) {
             return round(Math.sqrt(Math.pow(Math.abs(point1.x - point2.x), 2) + Math.pow(Math.abs(point1.y - point2.y), 2)));
+        },
+        saveFile : function(lines, points, verticies) {
+            points = changeState(points);
+            let saveFile = '[TITLE]\nbluebarn\n\n[JUNCTIONS]\n;ID              	Elev        	Demand      c	Pattern         \n';
+            points.forEach(junction => {
+                saveFile += ` ${junction.id}              	${junction.z}           	0           	                	;\n`;
+            });
+            saveFile += '\n[PIPES]\n;ID              	Node1           	Node2           	Length      	Diameter    	Roughness   	MinorLoss   	Status\n';
+            changeState(lines).forEach(pipe => {
+                saveFile += ` ${pipe.id}              	${pipe.startNode}              	${pipe.endNode}              	${pipe.length}          	12          	100         	0           	Open  	;\n`;
+            });
+            saveFile += '\n[COORDINATES]\n;Node            	X-Coord         	Y-Coord\n';
+            points.forEach(coordinate => {
+                saveFile += ` ${coordinate.id}              	${coordinate.x}              	${coordinate.y}\n`;
+            });
+            saveFile +='\n[VERTICES]\n'
+            verticies = changeState(verticies).forEach(vertex => {
+                saveFile += ` ${vertex.lineId}              	${vertex.x}              	${vertex.y}\n`
+            });
+            saveFile += '\n[END]\n';
+            return saveFile;
         }
     }
 })();
@@ -373,58 +405,60 @@ let load = {
     }
 };
 
-load.shapeFile(path.join(__dirname, 'RawInput/shapey.shp')).then(result => {
-    return get.pointCollisions(result.lines, result.points);
-}).then(result => {
-    return get.lineCollisions(result.lines, result.points);
-}).then(result => {
-    return get.verticies(result.lines, result.points);
-}).then(result => {
-    return load.pointFile(path.join(__dirname, 'RawInput/points.csv')).then(replacePoints => {
-        return {
-            points: get.addZDimension(changeState(result.points), replacePoints),
-            verticies: result.verticies,
-            lines: result.lines
-        }
+function things(pipeNetowrkArr) {
+    let boi = '';
+    //Expected Input
+    pipeNetowrkArr.forEach(network => {
+        let { shapeFile, pointFile, checkInternalCollisions, checkGlobalCollisions, diameter, simplifyVerts } = network;
+        load.shapeFile(shapeFile).then(shapeFile => {
+            if (checkInternalCollisions) {
+                return get.pointCollisions(shapeFile.lines, shapeFile.points).then(result => {
+                    return get.lineCollisions(result.lines, result.points);
+                })
+            }
+            return shapeFile;
+        }).then(result => {
+            if (checkGlobalCollisions) {
+                //Todo
+            }
+            return result;
+        }).then(result => {
+            if (simplifyVerts) {
+                return get.verticies(result.lines, result.points);
+            }
+            return result;
+        }).then(result => {
+            if (pointFile !== '') {
+                return load.pointFile(path.join(__dirname, 'RawInput/points.csv')).then(replacePoints => {
+                    return {
+                        points: get.addZDimension(changeState(result.points), replacePoints),
+                        verticies: result.verticies,
+                        lines: result.lines
+                    }
+                });
+            }
+            return result;
+        }).then(shapeInformation => {
+            boi = shapeInformation;
+        }).catch(err => {
+            console.error(err);
+        });
     });
-}).then(shapeInformation => {
-    let { lines, points, verticies } = shapeInformation;
-    lines = changeState(lines);
-    points = changeState(points);
-    verticies = changeState(verticies);
-    let saveFile = '[TITLE]\nbluebarn\n\n[JUNCTIONS]\n;ID              	Elev        	Demand      c	Pattern         \n';
-    points.forEach(junction => {
-        saveFile += ` ${junction.id}              	${junction.z}           	0           	                	;\n`;
-    });
-    saveFile += '\n[PIPES]\n;ID              	Node1           	Node2           	Length      	Diameter    	Roughness   	MinorLoss   	Status\n';
-    lines.forEach(pipe => {
-        saveFile += ` ${pipe.id}              	${pipe.startNode}              	${pipe.endNode}              	${pipe.length}          	12          	100         	0           	Open  	;\n`;
-    });
-    saveFile += '\n[COORDINATES]\n;Node            	X-Coord         	Y-Coord\n';
-    points.forEach(coordinate => {
-        saveFile += ` ${coordinate.id}              	${coordinate.x}              	${coordinate.y}\n`;
-    });
-    saveFile +='\n[VERTICES]\n'
-    verticies.forEach(vertex => {
-        saveFile += ` ${vertex.lineId}              	${vertex.x}              	${vertex.y}\n`
-    });
-    saveFile += '\n[END]\n';
-
-    fs.writeFileSync('forProcessing.inp', saveFile, 'utf-8');
-}).catch(err => {
-    console.log('An error ocurred!');
-    console.log(err)
-}).finally(() => {
-    console.log('Finished')
-})
-
-// function loadPipeNetworks(networkArray) {
-//     networkArray.forEach(network => {
-//         let { shapefilePath, pointFilePath, forcedPointsPath, options } = network;
-//         let { checkInternalCollisions, checkGlobalCollisions, pipeDia } = options;
-
-        
+    return boi;
+}
 
 
-//     })
-// }
+let tester = [
+    {
+      checkGlobalIntersections: false,
+      checkInternalIntersections: true,
+      diameter: 100,
+      id: 0,
+      pointFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\points.csv',
+      shapeFile: 'C:\\Users\\Jo Bull\\OneDrive\\Apps\\0008_WorkWaterModellingTool\\03_Code\\RawInput\\shapey.shp',
+      simplifyVerts: true
+    }
+  ]
+
+console.log(things(tester));
+// console.log(__dirname)
