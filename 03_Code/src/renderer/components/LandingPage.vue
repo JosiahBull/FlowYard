@@ -75,10 +75,12 @@
   import img4 from './clear_error-24px.svg';
   let dialog = remote.dialog;
   let canvas, processedPipeNetwork, ctx, dpi;
+  let loaded = false;
   window.onload = function() {
     canvas = document.getElementById('outputCanvas');
     ctx = canvas.getContext('2d');
     dpi = window.devicePixelRatio;
+    loaded = true;
     fixDpi();
   };
   window.onresize = function() {
@@ -98,6 +100,7 @@
     return d + '-' + m + '-' + y;
   };
   function fixDpi() {
+    if (!loaded) return;
     let style_height = +getComputedStyle(canvas).getPropertyValue("height").slice(0, -2);
     let style_width = +getComputedStyle(canvas).getPropertyValue("width").slice(0, -2);
     canvas.setAttribute('height', style_height * dpi);
@@ -317,10 +320,8 @@
           this.$data.globalVals.shapeFile = newShapeFile;
           this.$data.globalVals.pointFile = newPointFile;
           this.$data.globalVals.checkInternalIntersections = newInternalIntersect;
-          console.log('returned true;')
           return true;
         } else {
-          console.log('returned false;')
           return false;
         }
       }
