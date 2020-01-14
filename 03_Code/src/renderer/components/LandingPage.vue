@@ -560,13 +560,13 @@
     background-size: cover;
     height: 50px;
     width: 50px;
-    right: 15px;
-    top: 15px;
+    right: 10px;
+    top: 10px;
   }
   #newItemPreview:hover, #helpButton:hover {
     box-shadow: 0px 0px 5px 2px rgba(0,0,0,0.75);
   }
-  #newItemPreview:active, #helpButton:hover {
+  #newItemPreview:active, #helpButton:active {
     background-color:rgb(84, 14, 90);
   }
   /* Global Options Window */
