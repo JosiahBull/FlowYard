@@ -28,7 +28,7 @@ Most of the time though this shouldn't be required to create your FlowYard pipe 
 
 <h3>Extracting Files from Civil3D</h3>
 <h4>Shape Files (.shp)</h4>
-To export your line work from Civil3D, type the "mapexport" command and a save dialog window will appear. Be sure to select "ERSI Shapefile (\*.shp)" under type of file.
+To export your line work from Civil3D, type the "mapexport" command and a save dialog window will appear. Be sure to select "ERSI Shapefile (.shp)" under type of file.
 
 <img src="https://i.imgur.com/Ev3I4XV.png">
 
@@ -36,7 +36,7 @@ The shape file configuration window will follow:
 
 <img src="https://i.imgur.com/dZqAinu.png">
 
-Ensure to change **Object Type:** from *Point* to *Line*. Use the **Select objects to export** panel to choose which polylines and layers you would liek to export to the shapefile.
+Ensure to change **Object Type:** from *Point* to *Line*. Use the **Select objects to export** panel to choose which polylines and layers you would like to export to the shapefile.
 
 When you have finished, simply click ok and the shapefile will have been saved.
 
@@ -59,8 +59,9 @@ Follow the prompts which appear below the pipe network to configure the pipe net
 <h3>Global Options </h3>
 <h4>Global Intersections</h4>
 When toggled on, FlowYard will check for collisions between different pipe networks and internally. If global intersections is toggled off, then FlowYard will only check for collisions internally within each pipe network.
+
 <h4>Simplify Vertices</h4>
-Where possible FlowYard will attempt to simply lines down into vertices, reducing processing time in EPANET.
+Where possible FlowYard will attempt to simplify lines down into vertices, reducing processing time in EPANET.
 Verticies are represented by the blue sqaures in the Output Preview, while standard nodes are represented by red dots.
 <img src="https://i.imgur.com/c4RwaRR.png">
 
