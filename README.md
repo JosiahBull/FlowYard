@@ -11,6 +11,9 @@ FlowYard supports near-infinite numbers of pipe networks layered on top of one a
 
 The goal of FlowYard is to dramtically reduce the time it takes to generate an inp file for processing in EPANET from Civil3D Pipe Network data.
 
+<h2>Download and Installation</h2>
+Simply click on <a href="https://github.com/badtoro2/FlowYard/releases/download/V1.0.0/FlowYard.Setup.1.0.0.exe"> **FlowYard.Setup.1.0.0.exe** </a> to download, then run as you would any other installation file following onscreen prompts.
+
 <h2>Usage</h2>
 <h3>What Files to Extract</h3>
 FlowYard takes two filetypes as inputs, shape files (shp) and point files (csv). 
