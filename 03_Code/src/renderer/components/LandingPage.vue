@@ -1,5 +1,6 @@
 <template>
   <div id="wrapper">
+    <div id="helpButton" @mouseup="open('https://github.com/badtoro2/FlowYard')" v-b-tooltip.hover title="Tooltip directive content"></div>
     <div id="networkConfigWindow" class="wrapperStyling">
       <h1>Network Configuration</h1>
       <div id="networkConfigWrapper" class="elementContainerStyling">
@@ -206,6 +207,9 @@
     name: 'landing-page',
     components: { SystemInformation },
     methods: {
+      open(link) {
+        this.$electron.shell.openExternal(link)
+      },
       process() {
         if (this.$data.pipeNetworks.length === 0) return;
         this.validate();
@@ -530,24 +534,39 @@
     margin-bottom: 0px;
   }
   /* New Item CSS */
-  #newItemPreview {
-    height: 65px;
-    width: 65px;
-    background-image: url('./add-24px.svg');
-    background-size: cover;
+  /* #helpButton {
+    position: absolute;
+    right: 0;
+    background-color: purple;
+  } */
+  #newItemPreview, #helpButton {
     border-radius: 50%;
     background-color: purple;
     position: absolute;
-    bottom: 30px;
-    right: 30px;
     cursor: pointer;
     z-index: 5;
     box-shadow: 0px 0px 5px 0px rgba(0,0,0,0.75);
   }
-  #newItemPreview:hover {
+  #newItemPreview {
+    background-image: url('./add-24px.svg');
+    background-size: cover;
+    bottom: 30px;
+    right: 30px;
+    height: 65px;
+    width: 65px;
+  }
+  #helpButton {
+    background-image: url('./help_icon.png');
+    background-size: cover;
+    height: 50px;
+    width: 50px;
+    right: 15px;
+    top: 15px;
+  }
+  #newItemPreview:hover, #helpButton:hover {
     box-shadow: 0px 0px 5px 2px rgba(0,0,0,0.75);
   }
-  #newItemPreview:active {
+  #newItemPreview:active, #helpButton:hover {
     background-color:rgb(84, 14, 90);
   }
   /* Global Options Window */
