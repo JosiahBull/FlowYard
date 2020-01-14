@@ -5,11 +5,11 @@ Version 1.0 Released!
 <h2>Overview</h2>
 FlowYard is a civil tool which takes one or more shape files (.shp) and point files (.csv) and outputs a single .inp file for processing in EPANET.
 
-FlowYard will automatically detect collisions between lines and join nodes, automatically simplify veritices where possible, add in extra nodes for fire hydrants and other faciliites as needed, and automatically input height data to nodes when provided.
+FlowYard will automatically detect collisions between lines and join nodes, automatically simplify vertices where possible, add in extra nodes for fire hydrants and other facilities as needed, and automatically input height data to nodes when provided.
 
 FlowYard supports near-infinite numbers of pipe networks layered on top of one another.
 
-The goal of FlowYard is to dramtically reduce the time it takes to generate an inp file for processing in EPANET from Civil3D Pipe Network data.
+The goal of FlowYard is to dramatically reduce the time it takes to generate a .inp file for processing in EPANET from Civil3D Pipe Network data.
 
 <h2>Download and Installation</h2>
 Simply click on <b><a href="https://github.com/badtoro2/FlowYard/releases/download/V1.0.0/FlowYard.Setup.1.0.0.exe"> FlowYard.Setup.1.0.0.exe </a></b> to download, then run as you would any other installation file following onscreen prompts.
@@ -17,7 +17,7 @@ Simply click on <b><a href="https://github.com/badtoro2/FlowYard/releases/downlo
 <h3>What Files to Extract</h3>
 FlowYard takes two filetypes as inputs, shape files (shp) and point files (csv). 
 
-For most usecases, you should only need to export a shapefile to create a pipe network. A shapefile contains all of your linework, and FlowYard can process it into nodes and verticies automatically, joining collisions and overlaps.
+For most use cases, you should only need to export a shapefile to create a pipe network. A shapefile contains all of your linework, and FlowYard can process it into nodes and vertices automatically, joining collisions and overlaps.
 
 A point file should be exported if:
 <ul>
@@ -44,7 +44,7 @@ When you have finished, simply click ok and the shapefile will have been saved.
 To export points from AutoCAD to a csv file, right click on the relevant points in your ToolSpace and select *Export...*:
 <img src="https://i.imgur.com/bYBjHod.png">
 
-Change **Format:** to "*XYZ_Itensity (Comma Delimited)*" and save as a .csv file to your desired location.
+Change **Format:** to "*XYZ_Intensity (Comma Delimited)*" and save as a .csv file to your desired location.
 <img src="https://i.imgur.com/r5p4Rr8.png">
 
 All done! You're now ready to create your pipe network in FlowYard.
@@ -61,11 +61,11 @@ Follow the prompts which appear below the pipe network to configure the pipe net
 When toggled on, FlowYard will check for collisions between different pipe networks and internally. If global intersections is toggled off, then FlowYard will only check for collisions internally within each pipe network.
 
 <h4>Simplify Vertices</h4>
-Where possible FlowYard will attempt to simplify lines down into vertices, reducing processing time in EPANET.
-Verticies are represented by the blue sqaures in the Output Preview, while standard nodes are represented by red dots.
+Where possible FlowYard will attempt to simplify lines down into Vertices, reducing processing time in EPANET.
+Verticies are represented by the blue squares in the Output Preview, while standard nodes are represented by red dots.
 <img src="https://i.imgur.com/c4RwaRR.png">
 
 <h2>Credit</h2>
-FlowYard was developed by Josiah Bull for use by Blue Barn consulting. This product is licensed through MIT, and is freely available for use and modification by anyone without credit (though it is very much appreciated!)
+FlowYard was developed by Josiah Bull for use by Blue Barn consulting. This product is licensed through MIT and is freely available for use and modification by anyone without credit (though it is very much appreciated!)
 
 Got suggestions, recommendations, or bug reports? Contact me or submit an issue here on GitHub!
