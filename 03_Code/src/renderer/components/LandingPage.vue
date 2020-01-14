@@ -1,6 +1,6 @@
 <template>
   <div id="wrapper">
-    <div id="helpButton" @mouseup="open('https://github.com/badtoro2/FlowYard')" v-b-tooltip.hover title="Tooltip directive content"></div>
+    <div id="helpButton" @mouseup="open('https://github.com/badtoro2/FlowYard')" v-b-tooltip.hover title="Help"></div>
     <div id="networkConfigWindow" class="wrapperStyling">
       <h1>Network Configuration</h1>
       <div id="networkConfigWrapper" class="elementContainerStyling">
@@ -20,7 +20,7 @@
           </div>
         </div>
       </div>
-      <div id="newItemPreview" @mousedown="add()">
+      <div id="newItemPreview" @mousedown="add()" v-b-tooltip.hover title="Add Pipe Network">
           <!-- <h2>Add New</h2>
           <div class="networkDivider"></div>
           <div class="newItemBlock"></div>
